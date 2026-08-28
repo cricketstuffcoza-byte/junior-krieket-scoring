@@ -160,6 +160,24 @@ h1{margin:0;font-size:25px}.sub{opacity:.85;margin-top:5px}
 </div>
 </div>
 
+
+<div class="modal hidden" id="resultModal"><div class="modalbox">
+<h2>🏁 Beëindig wedstryd</h2>
+<p class="muted">Kies die finale status. ’n Gelykop- of nie-gespeelde wedstryd gee 2 ligapunte aan elke span.</p>
+<label>Wedstrydstatus</label>
+<select id="resultType">
+<option value="WIN">🏆 Normale wen</option>
+<option value="DRAW">🤝 Gelykop</option>
+<option value="CANCELLED_WEATHER">🌧️ Afgestel – Weer</option>
+<option value="CANCELLED_NO_SHOW">❌ Span daag nie op nie</option>
+<option value="POSTPONED">📅 Uitgestel</option>
+<option value="CANCELLED_MANAGEMENT">🛑 Afgestel deur Bestuur</option>
+</select><br><br>
+<div id="winnerWrap"><label>Wenner</label><select id="winnerTeam"></select><br><br></div>
+<label>Nota / rede (opsioneel)</label><input id="resultReason" placeholder="Kort nota">
+<div class="actions" style="margin-top:12px"><button class="primary" id="confirmEndMatch">BEVESTIG EN BEËINDIG</button><button class="ghost" id="cancelEndMatch">Kanselleer</button></div>
+<p id="resultMsg" class="muted"></p>
+</div></div>
 <script>
 const TEAMS = {"U/6": {"Blitzwolwe": ["Ewald van Schalkwyk", "Jaen Brummer", "James Pretorius", "Luan Pretorius", "Malan Horn", "Ruwan Theyse", "Divan Raw", "Juan-Pierre Kaas", "Malan Kruger"], "Sixers": ["Joshua West", "Luke Buys", "Rossouw du Plessis", "SJ Smith", "Zian Le Eoux", "Pieter Oosthuizen", "Liam van Schalkwyk", "Rohan-Leigh Diedericks"], "Vikings": ["Drikus Venter", "Henrique Bronkhorst", "Joshua van Staden", "Juandré Van Loggerenberg", "Kai van Schoor", "Ryan Nolte", "Heinro Michau", "Zayn Steynberg"], "Dragons": ["CJ Kruger", "Dayden Joubert", "DeAndre Joubert", "Edward Nienaber", "Lehan Benadie", "Tristan Theron", "Jacques Marais"]}};
 const PLAYERS = ["CJ Kruger", "Dayden Joubert", "DeAndre Joubert", "Divan Raw", "Drikus Venter", "Edward Nienaber", "Ewald van Schalkwyk", "Heinro Michau", "Henrique Bronkhorst", "Jacques Marais", "Jaen Brummer", "James Pretorius", "Joshua West", "Joshua van Staden", "Juan-Pierre Kaas", "Juandré Van Loggerenberg", "Kai van Schoor", "Lehan Benadie", "Liam van Schalkwyk", "Luan Pretorius", "Luke Buys", "Malan Horn", "Malan Kruger", "Pieter Oosthuizen", "Rohan-Leigh Diedericks", "Rossouw du Plessis", "Ruwan Theyse", "Ryan Nolte", "SJ Smith", "Tristan Theron", "Zayn Steynberg", "Zian Le Eoux"];
