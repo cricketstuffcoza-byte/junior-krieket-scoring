@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="af">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Junior Krieket – Admin Portaal V14</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#eef2f6}*{box-sizing:border-box}body{margin:0}.wrap{max-width:1200px;margin:auto;padding:14px}.card{background:#fff;border-radius:18px;padding:18px;margin:12px 0;box-shadow:0 3px 16px #0001}.top{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}h1,h2{margin:0 0 10px}.muted{color:#667085}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}label{display:block;margin-bottom:5px;font-weight:700;font-size:13px}input,select{width:100%;padding:11px;border:1px solid #ccd3dc;border-radius:10px;background:#fff;font-size:15px}button{border:0;border-radius:11px;padding:10px 14px;font-weight:800;cursor:pointer}.primary{background:#172033;color:#fff}.ghost{background:#eef2f6}.danger{background:#fee4e2;color:#b42318}.hidden{display:none!important}.pill{display:inline-block;padding:4px 9px;border-radius:999px;background:#edf2f7;font-size:12px;font-weight:800}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.small{font-size:13px}.success{color:#087443}.error{color:#b42318}.info{color:#175cd3}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.tabs button.active{background:#172033;color:#fff}table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px solid #e5e7eb;text-align:left;font-size:14px}.tablewrap{overflow:auto}.statgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stat{padding:14px;border:1px solid #e1e6ed;border-radius:14px}.num{font-size:24px;font-weight:900}.mini{font-size:12px;padding:7px 9px}@media(max-width:760px){.grid,.grid3{grid-template-columns:1fr}.statgrid{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body><div class="wrap">
+<div id="auth" class="card"><div class="top"><div><h1>🏏 Junior Krieket</h1><p class="muted">Admin Portaal</p></div><span class="pill">ADMIN V14</span></div><div class="grid"><div><label>E-pos</label><input id="email" type="email" autocomplete="username"></div><div><label>Wagwoord</label><input id="password" type="password" autocomplete="current-password"></div></div><div class="actions"><button type="button" class="primary" id="login">Meld Aan</button><button type="button" class="ghost" id="signup">Skep Rekening</button></div><p id="authMsg" class="small info">Veilige aanmelding gereed.</p></div>
+<div id="denied" class="card hidden"><h2>🔒 Geen toegang</h2><p>Hierdie rekening is nie as Admin gemerk nie.</p><button type="button" class="ghost" id="deniedLogout">Teken uit</button></div>
+<div id="app" class="hidden"><div class="card"><div class="top"><div><h1>🔐 Admin Portaal</h1><p id="welcome" class="muted"></p></div><button type="button" class="ghost" id="logout">Teken uit</button></div><div class="tabs"><button type="button" class="active" data-tab="dashboard">📊 Oorsig</button><button type="button" data-tab="teams">🏏 Spanne</button><button type="button" data-tab="players">👥 Spelers</button><button type="button" data-tab="fixtures">📅 Wedstryde</button><button type="button" data-tab="people">🧑‍🏫 Toegang</button></div></div>
+<section id="dashboard"><div class="statgrid"><div class="stat"><div class="num" id="teamCount">0</div>Aktiewe spanne</div><div class="stat"><div class="num" id="playerCount">0</div>Aktiewe spelers</div><div class="stat"><div class="num" id="fixtureCount">0</div>Wedstryde</div><div class="stat"><div class="num" id="completedCount">0</div>Voltooi</div></div><div class="card"><h2>ℹ️ Stelselstatus</h2><p id="dataMsg" class="muted">Laai data…</p></div></section>
+<section id="teams" class="hidden"><div class="card"><h2>🏏 Spanne</h2><div class="grid"><div><label>Span naam</label><input id="teamName"></div><div><label>Ouderdomsgroep</label><select id="teamAge"><option>U/6</option><option>U/7</option><option>U/8</option></select></div></div><div class="actions"><button type="button" class="primary" id="addTeam">Voeg Span By</button></div><p id="teamMsg" class="small"></p></div><div class="card"><div class="top"><h2>Bestaande spanne</h2><input id="teamSearch" placeholder="Soek span…" style="max-width:300px"></div><div class="tablewrap" id="teamTable"></div></div></section>
+<section id="players" class="hidden"><div class="card"><h2>👥 Spelers</h2><div class="grid"><div><label>Naam</label><input id="playerFirst"></div><div><label>Van</label><input id="playerSurname"></div><div><label>Span</label><select id="playerTeam"></select></div></div><div class="actions"><button type="button" class="primary" id="addPlayer">Voeg Speler By</button></div><p id="playerMsg" class="small"></p></div><div class="card"><div class="top"><h2>Spelerlys</h2><input id="playerSearch" placeholder="Soek speler…" style="max-width:300px"></div><div class="tablewrap" id="playerTable"></div></div></section>
+<section id="fixtures" class="hidden"><div class="card"><h2>📅 Skep wedstryd</h2><div class="grid3"><div><label>Ouderdomsgroep</label><select id="fixtureAge"><option>U/6</option><option>U/7</option><option>U/8</option></select></div><div><label>Span A</label><select id="fixtureA"></select></div><div><label>Span B</label><select id="fixtureB"></select></div><div><label>Datum</label><input id="fixtureDate" type="date"></div><div><label>Tyd</label><input id="fixtureTime" type="time" value="17:30"></div><div><label>Venue</label><input id="fixtureVenue" value="Laerskool Wonderboom"></div></div><div class="actions"><button type="button" class="primary" id="addFixture">Skep Wedstryd</button></div><p id="fixtureMsg" class="small"></p></div><div class="card"><h2>Wedstrydlys</h2><div class="tablewrap" id="fixtureTable"></div></div></section>
+<section id="people" class="hidden"><div class="card"><h2>👤 Gebruikersprofiele</h2><p class="muted">Hier wys bestaande profiele. Die profiel van die huidige Admin kan hier bevestig word. Coach- en ouer-koppelings word in die volgende stap aan die werklike databasisstruktuur gekoppel.</p><div class="tablewrap" id="profileTable"></div></div></section>
+</div></div>
+<script>
+'use strict';
+const SUPABASE_URL='https://moomommajyldjquncnrd.supabase.co';
+const SUPABASE_KEY='sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH';
+const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=id=>document.getElementById(id);
+let currentUser=null,teams=[],players=[],matches=[],profiles=[];
+const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+function setMsg(id,text,cls=''){const e=$(id);if(e){e.textContent=text;e.className='small '+cls}}
+function teamName(id){return teams.find(t=>String(t.id)===String(id))?.name||'—'}
+function showAuth(){ $('auth').classList.remove('hidden');$('denied').classList.add('hidden');$('app').classList.add('hidden') }
+async function login(){
+ const email=$('email').value.trim(),password=$('password').value;
+ if(!email||!password){setMsg('authMsg','Vul jou e-pos en wagwoord in.','error');return}
+ const b=$('login');b.disabled=true;b.textContent='Meld aan…';setMsg('authMsg','Verbind met Supabase…','info');
+ try{const {data,error}=await db.auth.signInWithPassword({email,password});if(error)throw error;if(!data.session)throw new Error('Geen Supabase-sessie ontvang nie.');await requireAdmin()}
+ catch(e){console.error(e);setMsg('authMsg',e.message||'Aanmelding het misluk.','error')}
+ finally{b.disabled=false;b.textContent='Meld Aan'}
+}
+async function signup(){const email=$('email').value.trim(),password=$('password').value;if(!email||password.length<6){setMsg('authMsg','Gebruik ’n geldige e-pos en minstens 6 karakters.','error');return}try{const {data,error}=await db.auth.signUp({email,password});if(error)throw error;setMsg('authMsg',data.session?'Rekening geskep en aangemeld.':'Rekening geskep. Bevestig jou e-pos indien nodig.','success')}catch(e){setMsg('authMsg',e.message,'error')}}
+async function requireAdmin(){
+ const {data:{session}}=await db.auth.getSession();
+ if(!session){showAuth();return false}
+ currentUser=session.user;
+ const {data:p,error}=await db.from('user_profiles').select('full_name,role').eq('user_id',currentUser.id).maybeSingle();
+ if(error)throw error;
+ if(!p){await db.auth.signOut();showAuth();setMsg('authMsg','Aanmelding werk, maar jou gebruikersprofiel bestaan nog nie.','error');return false}
+ if(String(p.role).toLowerCase()!=='admin'){$('auth').classList.add('hidden');$('denied').classList.remove('hidden');$('app').classList.add('hidden');return false}
+ $('auth').classList.add('hidden');$('denied').classList.add('hidden');$('app').classList.remove('hidden');$('welcome').textContent='Welkom '+(p.full_name||currentUser.email)+' • Admin';
+ await loadCore();return true
+}
+async function loadCore(){
+ const results=await Promise.all([
+  db.from('teams').select('*').order('name'),
+  db.from('players').select('*').order('surname'),
+  db.from('matches').select('*').order('match_date',{ascending:false})
+ ]);
+ const [t,p,m]=results;
+ if(t.error)throw t.error;if(p.error)throw p.error;if(m.error)throw m.error;
+ teams=t.data||[];players=p.data||[];matches=m.data||[];render();
+}
+function render(){
+ $('teamCount').textContent=teams.filter(x=>x.active!==false).length;
+ $('playerCount').textContent=players.filter(x=>x.active!==false).length;
+ $('fixtureCount').textContent=matches.length;
+ $('completedCount').textContent=matches.filter(x=>String(x.status).toUpperCase()==='COMPLETED').length;
+ setMsg('dataMsg',teams.filter(x=>x.active!==false).length+' aktiewe spanne • '+players.filter(x=>x.active!==false).length+' aktiewe spelers • '+matches.length+' wedstryde','success');
+ renderTeams();renderPlayers();renderFixtures();fillSelects();
+}
+function renderTeams(){const q=($('teamSearch').value||'').toLowerCase();const rows=teams.filter(t=>(t.name||'').toLowerCase().includes(q)).map(t=>`<tr><td>${esc(t.name)}</td><td>${esc(t.age_group||'—')}</td><td>${t.active===false?'Onaktief':'Aktief'}</td><td><button type="button" class="ghost mini" onclick="editTeam('${t.id}')">Wysig</button> <button type="button" class="${t.active===false?'primary':'danger'} mini" onclick="toggleTeam('${t.id}')">${t.active===false?'Aktiveer':'Deaktiveer'}</button></td></tr>`).join('');$('teamTable').innerHTML='<table><thead><tr><th>Span</th><th>Groep</th><th>Status</th><th>Aksies</th></tr></thead><tbody>'+rows+'</tbody></table>'}
+function renderPlayers(){const q=($('playerSearch').value||'').toLowerCase();const rows=players.filter(p=>(p.first_name+' '+p.surname+' '+teamName(p.team_id)).toLowerCase().includes(q)).map(p=>`<tr><td>${esc((p.first_name||'')+' '+(p.surname||''))}</td><td>${esc(teamName(p.team_id))}</td><td>${esc(teams.find(t=>String(t.id)===String(p.team_id))?.age_group||'—')}</td><td>${p.active===false?'Onaktief':'Aktief'}</td><td><button type="button" class="ghost mini" onclick="editPlayer('${p.id}')">Wysig</button> <button type="button" class="${p.active===false?'primary':'danger'} mini" onclick="togglePlayer('${p.id}')">${p.active===false?'Aktiveer':'Deaktiveer'}</button></td></tr>`).join('');$('playerTable').innerHTML='<table><thead><tr><th>Speler</th><th>Span</th><th>Groep</th><th>Status</th><th>Aksies</th></tr></thead><tbody>'+rows+'</tbody></table>'}
+function renderFixtures(){$('fixtureTable').innerHTML='<table><thead><tr><th>Datum</th><th>Wedstryd</th><th>Groep</th><th>Tyd</th><th>Venue</th><th>Status</th></tr></thead><tbody>'+matches.map(m=>`<tr><td>${esc(m.match_date||'—')}</td><td>${esc(teamName(m.team_a_id))} vs ${esc(teamName(m.team_b_id))}</td><td>${esc(m.age_group||'—')}</td><td>${esc(m.match_time||'—')}</td><td>${esc(m.venue||'—')}</td><td>${esc(m.status||'—')}</td></tr>`).join('')+'</tbody></table>'}
+function fillSelects(){const active=teams.filter(t=>t.active!==false);$('playerTeam').innerHTML=active.map(t=>`<option value="${t.id}">${esc(t.name)} (${esc(t.age_group||'—')})</option>`).join('');fillFixtureTeams()}
+function fillFixtureTeams(){const ts=teams.filter(t=>t.active!==false&&t.age_group===$('fixtureAge').value);const html=ts.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');$('fixtureA').innerHTML=html;$('fixtureB').innerHTML=html;if(ts[1])$('fixtureB').value=ts[1].id}
+async function addTeam(){const name=$('teamName').value.trim(),age=$('teamAge').value;if(!name)return setMsg('teamMsg','Vul ’n span naam in.','error');try{const {error}=await db.from('teams').insert({name,age_group:age,active:true});if(error)throw error;$('teamName').value='';setMsg('teamMsg','Span suksesvol bygevoeg.','success');await loadCore()}catch(e){setMsg('teamMsg',e.message,'error')}}
+async function editTeam(id){const t=teams.find(x=>String(x.id)===String(id));if(!t)return;const name=prompt('Span naam:',t.name);if(name===null)return;const age=prompt('Ouderdomsgroep (U/6, U/7 of U/8):',t.age_group||'U/6');if(age===null)return;try{const {error}=await db.from('teams').update({name:name.trim(),age_group:age.trim()}).eq('id',id);if(error)throw error;await loadCore()}catch(e){alert('Kon span nie wysig nie: '+e.message)}}
+async function toggleTeam(id){const t=teams.find(x=>String(x.id)===String(id));if(!t)return;const active=t.active===false;try{const {error}=await db.from('teams').update({active}).eq('id',id);if(error)throw error;await loadCore()}catch(e){alert('Kon spanstatus nie verander nie: '+e.message)}}
+async function addPlayer(){const first=$('playerFirst').value.trim(),surname=$('playerSurname').value.trim(),team_id=$('playerTeam').value;if(!first||!surname||!team_id)return setMsg('playerMsg','Voltooi die speler se naam en span.','error');try{const {error}=await db.from('players').insert({first_name:first,surname,team_id,active:true});if(error)throw error;$('playerFirst').value='';$('playerSurname').value='';setMsg('playerMsg','Speler suksesvol bygevoeg.','success');await loadCore()}catch(e){setMsg('playerMsg',e.message,'error')}}
+async function editPlayer(id){const p=players.find(x=>String(x.id)===String(id));if(!p)return;const first=prompt('Naam:',p.first_name||'');if(first===null)return;const surname=prompt('Van:',p.surname||'');if(surname===null)return;const activeTeams=teams.filter(t=>t.active!==false);const teamNameInput=prompt('Span naam:',teamName(p.team_id));if(teamNameInput===null)return;const nt=activeTeams.find(t=>t.name.toLowerCase()===teamNameInput.trim().toLowerCase());if(!nt)return alert('Span nie gevind nie. Gebruik die presiese span naam.');try{const {error}=await db.from('players').update({first_name:first.trim(),surname:surname.trim(),team_id:nt.id}).eq('id',id);if(error)throw error;await loadCore()}catch(e){alert('Kon speler nie wysig nie: '+e.message)}}
+async function togglePlayer(id){const p=players.find(x=>String(x.id)===String(id));if(!p)return;const active=p.active===false;try{const {error}=await db.from('players').update({active}).eq('id',id);if(error)throw error;await loadCore()}catch(e){alert('Kon spelerstatus nie verander nie: '+e.message)}}
+async function addFixture(){const a=$('fixtureA').value,b=$('fixtureB').value;if(!a||!b||a===b)return setMsg('fixtureMsg','Kies twee verskillende spanne.','error');try{const {error}=await db.from('matches').insert({age_group:$('fixtureAge').value,team_a_id:a,team_b_id:b,match_date:$('fixtureDate').value||new Date().toISOString().slice(0,10),match_time:$('fixtureTime').value,venue:$('fixtureVenue').value,status:'SCHEDULED'});if(error)throw error;setMsg('fixtureMsg','Wedstryd suksesvol geskep.','success');await loadCore()}catch(e){setMsg('fixtureMsg',e.message,'error')}}
+async function loadProfiles(){try{const {data,error}=await db.from('user_profiles').select('*').order('full_name');if(error)throw error;profiles=data||[];$('profileTable').innerHTML='<table><thead><tr><th>Naam</th><th>Rol</th><th>User ID</th></tr></thead><tbody>'+profiles.map(p=>`<tr><td>${esc(p.full_name||'—')}</td><td>${esc(p.role||'—')}</td><td>${esc(p.user_id||'—')}</td></tr>`).join('')+'</tbody></table>'}catch(e){$('profileTable').innerHTML='<p class="error small">Kon profiele nie laai nie: '+esc(e.message)+'</p>'}}
+async function logout(){await db.auth.signOut();currentUser=null;showAuth();setMsg('authMsg','Uitgeteken.','success')}
+$('login').onclick=login;$('signup').onclick=signup;$('logout').onclick=logout;$('deniedLogout').onclick=logout;$('addTeam').onclick=addTeam;$('addPlayer').onclick=addPlayer;$('addFixture').onclick=addFixture;$('fixtureAge').onchange=fillFixtureTeams;$('teamSearch').oninput=renderTeams;$('playerSearch').oninput=renderPlayers;$('password').onkeydown=e=>{if(e.key==='Enter')login()};
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=async()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('#app section').forEach(x=>x.classList.add('hidden'));$(b.dataset.tab).classList.remove('hidden');if(b.dataset.tab==='people')await loadProfiles()});
+db.auth.onAuthStateChange((event)=>{if(event==='SIGNED_OUT')showAuth()});
+(async()=>{try{await requireAdmin()}catch(e){console.error(e);showAuth();setMsg('authMsg','Fout met Supabase: '+e.message,'error')}})();
+</script></body></html>
