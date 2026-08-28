@@ -74,6 +74,18 @@ flex-wrap:wrap
 flex:1 1 auto
 }
 
+button,select{
+border:0;
+border-radius:11px;
+padding:13px 16px;
+font-weight:900;
+font-size:16px
+}
+
+button{
+cursor:pointer
+}
+
 .run{
 background:#f1f5f9;
 min-width:58px
@@ -109,20 +121,7 @@ color:#172033
 select{
 border:1px solid #ccd3dc;
 background:white;
-width:100%;
-border-radius:11px;
-padding:13px 16px;
-font-weight:900;
-font-size:16px
-}
-
-button{
-border:0;
-border-radius:11px;
-padding:13px 16px;
-font-weight:900;
-font-size:16px;
-cursor:pointer
+width:100%
 }
 
 .muted{
@@ -259,6 +258,12 @@ KIES BOULER
 
 </div>
 
+<br>
+
+<button class="danger" id="undoLast">
+↩️ UNDO LAASTE BAL
+</button>
+
 
 <h3>🚨 Onspeelbare bal</h3>
 
@@ -284,18 +289,9 @@ Daarna word die vervangende Coach Throw as die speelbare bal aangeteken.
 
 <div class="card">
 
-<h2>📊 Bowling/Fielding Statistiek</h2>
+<h2>📊 Bouler se beurt</h2>
 
 <div id="bowlerTable"></div>
-
-</div>
-
-
-<div class="card">
-
-<h2>🟠 Coach Throw Statistiek</h2>
-
-<div id="coachThrowTable"></div>
 
 </div>
 
@@ -1295,6 +1291,7 @@ $("#coachModal")
 .remove("hidden");
 
 };
+
   /* COACH THROW */
 
 document
@@ -1656,7 +1653,7 @@ await renderStats();
 };
 
 
-/* BOWLING / FIELDING STATS */
+/* BOWLING STATS */
 
 async function renderStats(){
 
@@ -1688,8 +1685,6 @@ return;
 const allEvents=
 events||[];
 
-
-/* CURRENT BOWLER */
 
 const bowlerEvents=
 allEvents.filter(
@@ -1742,45 +1737,25 @@ e.dismissal_type==="CATCH"
 ).length;
 
 
-const catches=
-allEvents.filter(
-e=>
-e.dismissal_type==="CATCH" &&
-e.fielder_id===
-live.current_bowler_id
-).length;
-
-
-const runOuts=
-allEvents.filter(
-e=>
-e.dismissal_type==="RUN_OUT" &&
-e.fielder_id===
-live.current_bowler_id
-).length;
-
-
 $("#bowlerStats").textContent=
 `Bouler: ${pname(live.current_bowler_id)} • `+
 `R ${bowlerRuns} • `+
 `Wides ${wides} • `+
 `NB ${noBalls} • `+
 `Dots ${dots} • `+
-`Wickets ${wickets} • `+
-`Catches ${catches} • `+
-`Run Outs ${runOuts}`;
+`Wickets ${wickets}`;
 
 
-/* ALL BOWLERS / FIELDERS */
+/* ALL BOWLERS */
 
-const fielders=
+const b=
 activeTeamPlayers(
 fieldingTeamId()
 );
 
 
 const bowlers=
-fielders.map(
+b.map(
 p=>{
 
 const x=
@@ -1831,20 +1806,6 @@ x.filter(
 e=>
 e.dismissal_type==="BOWLED" ||
 e.dismissal_type==="CATCH"
-).length,
-
-catches:
-allEvents.filter(
-e=>
-e.dismissal_type==="CATCH" &&
-e.fielder_id===p.id
-).length,
-
-runOuts:
-allEvents.filter(
-e=>
-e.dismissal_type==="RUN_OUT" &&
-e.fielder_id===p.id
 ).length
 
 };
@@ -1866,8 +1827,6 @@ $("#bowlerTable")
 <th>NB</th>
 <th>Dots</th>
 <th>W</th>
-<th>Catches</th>
-<th>Run Outs</th>
 
 </tr>
 
@@ -1882,8 +1841,6 @@ x=>
 <td>${x.nb}</td>
 <td>${x.d}</td>
 <td>${x.w}</td>
-<td>${x.catches}</td>
-<td>${x.runOuts}</td>
 
 </tr>
 `
@@ -1893,86 +1850,9 @@ x=>
 `;
 
 
-/* COACH THROW STATS */
+/* BATTER STATS */
 
-const coachThrows=
-allEvents.filter(
-e=>
-e.event_type==="COACH_THROW"
-);
-
-
-const coachRuns=
-coachThrows.reduce(
-(a,e)=>
-a+
-(Number(e.runs)||0),
-0
-);
-
-
-const coachWickets=
-coachThrows.filter(
-e=>
-e.dismissal_type
-).length;
-
-
-const coachCatches=
-coachThrows.filter(
-e=>
-e.dismissal_type==="CATCH"
-).length;
-
-
-const coachRunOuts=
-coachThrows.filter(
-e=>
-e.dismissal_type==="RUN_OUT"
-).length;
-
-
-const coachBowled=
-coachThrows.filter(
-e=>
-e.dismissal_type==="BOWLED"
-).length;
-
-
-$("#coachThrowTable")
-.innerHTML=
-`
-<table>
-
-<tr>
-
-<th>Coach Throws</th>
-<th>Runs</th>
-<th>Wickets</th>
-<th>Catches</th>
-<th>Run Outs</th>
-<th>Bowled</th>
-
-</tr>
-
-<tr>
-
-<td>${coachThrows.length}</td>
-<td>${coachRuns}</td>
-<td>${coachWickets}</td>
-<td>${coachCatches}</td>
-<td>${coachRunOuts}</td>
-<td>${coachBowled}</td>
-
-</tr>
-
-</table>
-`;
-
-
-/* PLAYER STATISTICS */
-
-const playerIds=
+const batterIds=
 [
 ...new Set(
 allEvents
@@ -1980,8 +1860,7 @@ allEvents
 e=>
 [
 e.striker_id,
-e.non_striker_id,
-e.fielder_id
+e.non_striker_id
 ]
 .filter(Boolean)
 )
@@ -1989,109 +1868,55 @@ e.fielder_id
 ];
 
 
-const playerRows=
-playerIds.map(
+const batterRows=
+batterIds.map(
 id=>{
 
-const p=
-players.find(
-x=>x.id===id
-);
-
-
-const batting=
+const x=
 allEvents.filter(
 e=>
 e.striker_id===id
 );
 
 
-const runs=
-batting.reduce(
+return{
+
+name:pname(id),
+
+runs:x.reduce(
 (a,e)=>
 a+
 (
 e.event_type==="NORMAL" ||
 e.event_type==="COACH_THROW"
-?
-Number(e.runs)||0
-:
-0
+? Number(e.runs)||0
+: 0
 ),
 0
-);
+),
 
-
-const balls=
-batting.filter(
+balls:x.filter(
 e=>
 e.playable_ball
-).length;
+).length,
 
-
-const fours=
-batting.filter(
+fours:x.filter(
 e=>
 e.playable_ball &&
 Number(e.runs)===4
-).length;
+).length,
 
-
-const sixes=
-batting.filter(
+sixes:x.filter(
 e=>
 e.playable_ball &&
 Number(e.runs)===6
-).length;
+).length,
 
-
-const outs=
-batting.filter(
+wickets:x.filter(
 e=>
+e.striker_id===id &&
 e.dismissal_type
-).length;
-
-
-const playerCatches=
-allEvents.filter(
-e=>
-e.dismissal_type==="CATCH" &&
-e.fielder_id===id
-).length;
-
-
-const playerRunOuts=
-allEvents.filter(
-e=>
-e.dismissal_type==="RUN_OUT" &&
-e.fielder_id===id
-).length;
-
-
-return{
-
-name:
-p
-?
-p.first_name+" "+p.surname
-:
-"—",
-
-runs,
-
-balls,
-
-fours,
-
-sixes,
-
-outs,
-
-catches:
-playerCatches,
-
-runOuts:
-playerRunOuts
+).length
 
 };
 
@@ -2101,23 +1926,23 @@ playerRunOuts
 
 $("#playerTable")
 .innerHTML=
+batterRows.length
+?
 `
 <table>
 
 <tr>
 
-<th>Speler</th>
-<th>Runs</th>
+<th>Kolwer</th>
+<th>R</th>
 <th>Balle</th>
 <th>4s</th>
 <th>6s</th>
 <th>Uit</th>
-<th>Catches</th>
-<th>Run Outs</th>
 
 </tr>
 
-${playerRows.map(
+${batterRows.map(
 x=>
 `
 <tr>
@@ -2127,18 +1952,221 @@ x=>
 <td>${x.balls}</td>
 <td>${x.fours}</td>
 <td>${x.sixes}</td>
-<td>${x.outs}</td>
-<td>${x.catches}</td>
-<td>${x.runOuts}</td>
+<td>${x.wickets?"Ja":"Nee"}</td>
 
 </tr>
 `
 ).join("")}
 
 </table>
-`;
+`
+:
+`<p class="muted">Nog geen kolwer-statistiek nie.</p>`;
 
 }
+
+
+
+/* UNDO LAST BALL */
+
+$("#undoLast").onclick=async()=>{
+
+try{
+
+const {
+data:events,
+error:eventError
+}=
+await db
+.from("ball_events")
+.select("*")
+.eq("innings_id",innings.id)
+.order("created_at",{ascending:false})
+.order("id",{ascending:false});
+
+if(eventError)
+throw eventError;
+
+if(!events || !events.length){
+
+alert("Daar is geen bal om te undo nie.");
+
+return;
+
+}
+
+const last=events[0];
+
+/*
+Find the state immediately before the last event by replaying
+all earlier events from the beginning. This keeps the totals,
+balls, pair count, striker/non-striker and bowler consistent.
+*/
+
+const previous=events
+.filter(e=>e.id!==last.id)
+.sort((a,b)=>{
+const ta=new Date(a.created_at||0).getTime();
+const tb=new Date(b.created_at||0).getTime();
+return ta-tb;
+});
+
+let runs=0;
+let wickets=0;
+let playable=0;
+let unplayable=0;
+let pairBalls=0;
+let overBalls=0;
+let overNo=0;
+let pairNo=1;
+
+let striker=null;
+let runner=null;
+let currentBowler=null;
+
+if(previous.length){
+
+/* Start from the first two batters saved in the current innings. */
+const battingPlayers=players.filter(
+p=>
+String(p.team_id)===String(innings.batting_team_id) &&
+p.active!==false
+);
+
+if(battingPlayers.length>=2){
+
+striker=battingPlayers[0].id;
+runner=battingPlayers[1].id;
+
+}
+
+}
+
+for(const e of previous){
+
+runs+=Number(e.runs)||0;
+
+if(e.dismissal_type)
+wickets++;
+
+if(e.playable_ball)
+playable++;
+
+if(e.unplayable_ball)
+unplayable++;
+
+if(e.playable_ball){
+
+pairBalls++;
+overBalls++;
+
+}
+
+/* Keep the most recent bowler used on a normal delivery. */
+if(e.event_type!=="COACH_THROW" && e.bowler_id)
+currentBowler=e.bowler_id;
+
+/* Runs change striker position on odd totals. */
+if((Number(e.runs)||0)%2===1){
+[striker,runner]=[runner,striker];
+}
+
+/* A completed over swaps the batters and clears bowler. */
+if(overBalls>=6){
+
+overNo++;
+overBalls=0;
+
+[striker,runner]=[runner,striker];
+
+currentBowler=null;
+
+}
+
+/* A completed pair resets the pair ball count. */
+if(pairBalls>=12){
+
+pairNo++;
+pairBalls=0;
+
+}
+
+}
+
+/*
+Delete the actual last event only after the previous state
+has been reconstructed.
+*/
+
+const {
+error:deleteError
+}=
+await db
+.from("ball_events")
+.delete()
+.eq("id",last.id);
+
+if(deleteError)
+throw deleteError;
+
+
+/* Restore the live state. */
+
+const {
+data:updated,
+error:stateError
+}=
+await db
+.from("live_match_state")
+.update({
+
+innings_runs:runs,
+innings_wickets:wickets,
+
+playable_balls:playable,
+unplayable_balls:unplayable,
+
+over_no:overNo,
+over_playable_balls:overBalls,
+
+pair_no:pairNo,
+pair_playable_balls:pairBalls,
+
+striker_id:striker,
+non_striker_id:runner,
+
+current_bowler_id:currentBowler,
+
+status:"LIVE"
+
+})
+.eq("match_id",matchId)
+.select()
+.single();
+
+if(stateError)
+throw stateError;
+
+live=updated;
+
+pendingUnplayable=null;
+
+render();
+
+await renderStats();
+
+alert("Laaste bal is ongedaan gemaak.");
+
+}catch(e){
+
+alert(
+"Undo kon nie voltooi word nie.\n\n"+
+e.message
+);
+
+}
+
+};
 
 
 /* BACK */
