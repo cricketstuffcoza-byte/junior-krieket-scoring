@@ -289,7 +289,7 @@ Daarna word die vervangende Coach Throw as die speelbare bal aangeteken.
 
 <div class="card">
 
-<h2>📊 Bouler se beurt</h2>
+<h2>📊 Bowling/Fielding Statistiek</h2>
 
 <div id="bowlerTable"></div>
 
@@ -2000,65 +2000,106 @@ await db
 .order("created_at",{ascending:false})
 .order("id",{ascending:false});
 
-if(eventError)
-throw eventError;
+if(eventError) throw eventError;
 
-if(!events || !events.length){
+if(!events || events.length===0)
+return;
 
-alert("Daar is geen bal om te undo nie.");
+const last=events[0];
+
+
+/*
+IMPORTANT:
+Delete the event first. The live state is only changed
+after Supabase confirms the DELETE succeeded.
+*/
+
+const {
+data:deletedRows,
+error:deleteError
+}=
+await db
+.from("ball_events")
+.delete()
+.eq("id",last.id)
+.select();
+
+if(deleteError) throw deleteError;
+
+if(!deletedRows || deletedRows.length===0){
+
+console.error(
+"Undo: Supabase did not delete the last ball.",
+last
+);
 
 return;
 
 }
 
-const last=events[0];
 
 /*
-Find the state immediately before the last event by replaying
-all earlier events from the beginning. This keeps the totals,
-balls, pair count, striker/non-striker and bowler consistent.
+The remaining events are now the authoritative history.
+Recalculate the complete innings state from them.
 */
 
-const previous=events
-.filter(e=>e.id!==last.id)
-.sort((a,b)=>{
-const ta=new Date(a.created_at||0).getTime();
-const tb=new Date(b.created_at||0).getTime();
-return ta-tb;
-});
+const {
+data:remaining,
+error:remainingError
+}=
+await db
+.from("ball_events")
+.select("*")
+.eq("innings_id",innings.id)
+.order("created_at",{ascending:true})
+.order("id",{ascending:true});
+
+if(remainingError) throw remainingError;
+
+const history=remaining||[];
+
+
+/*
+Initial two batters.
+*/
+
+const battingPlayers=
+players.filter(
+p=>
+String(p.team_id)===
+String(innings.batting_team_id)
+&&
+p.active!==false
+);
+
+
+let striker=
+battingPlayers[0]
+? battingPlayers[0].id
+: null;
+
+let runner=
+battingPlayers[1]
+? battingPlayers[1].id
+: null;
 
 let runs=0;
 let wickets=0;
 let playable=0;
 let unplayable=0;
-let pairBalls=0;
 let overBalls=0;
 let overNo=0;
+let pairBalls=0;
 let pairNo=1;
 
-let striker=null;
-let runner=null;
 let currentBowler=null;
 
-if(previous.length){
 
-/* Start from the first two batters saved in the current innings. */
-const battingPlayers=players.filter(
-p=>
-String(p.team_id)===String(innings.batting_team_id) &&
-p.active!==false
-);
+/*
+Replay every remaining event in chronological order.
+*/
 
-if(battingPlayers.length>=2){
-
-striker=battingPlayers[0].id;
-runner=battingPlayers[1].id;
-
-}
-
-}
-
-for(const e of previous){
+for(const e of history){
 
 runs+=Number(e.runs)||0;
 
@@ -2073,33 +2114,116 @@ unplayable++;
 
 if(e.playable_ball){
 
-pairBalls++;
 overBalls++;
+pairBalls++;
 
 }
 
-/* Keep the most recent bowler used on a normal delivery. */
-if(e.event_type!=="COACH_THROW" && e.bowler_id)
-currentBowler=e.bowler_id;
 
-/* Runs change striker position on odd totals. */
-if((Number(e.runs)||0)%2===1){
-[striker,runner]=[runner,striker];
+/*
+The bowler remains active until the over changes.
+Coach Throws never change the bowler.
+*/
+
+if(
+e.event_type!=="COACH_THROW" &&
+e.bowler_id
+){
+
+currentBowler=
+e.bowler_id;
+
 }
 
-/* A completed over swaps the batters and clears bowler. */
+
+/*
+Odd runs swap the batters.
+*/
+
+if(
+(Number(e.runs)||0)%2===1
+){
+
+[
+striker,
+runner
+]=[
+runner,
+striker
+];
+
+}
+
+
+/*
+After a wicket, the dismissed striker must temporarily
+be replaced by the next batter.
+
+The existing live state contains the replacement, so when
+replaying a historical wicket we preserve the next batter
+from the current state where possible.
+*/
+
+if(e.dismissal_type){
+
+if(
+e.striker_id===
+striker &&
+live.striker_id &&
+live.striker_id!==e.striker_id &&
+live.striker_id!==e.non_striker_id
+){
+
+striker=
+live.striker_id;
+
+}else if(
+e.striker_id===
+striker
+){
+
+/*
+Leave the dismissed position available. The next pair
+selection/state will determine the replacement.
+*/
+
+striker=
+e.non_striker_id;
+
+runner=
+e.non_striker_id;
+
+}
+
+}
+
+
+/*
+End of over.
+*/
+
 if(overBalls>=6){
 
 overNo++;
 overBalls=0;
 
-[striker,runner]=[runner,striker];
+[
+striker,
+runner
+]=[
+runner,
+striker
+];
 
 currentBowler=null;
 
 }
 
-/* A completed pair resets the pair ball count. */
+
+/*
+End of pair.
+*/
+
 if(pairBalls>=12){
 
 pairNo++;
@@ -2109,24 +2233,40 @@ pairBalls=0;
 
 }
 
+
 /*
-Delete the actual last event only after the previous state
-has been reconstructed.
+If there are no remaining events, restore the initial state.
 */
 
-const {
-error:deleteError
-}=
-await db
-.from("ball_events")
-.delete()
-.eq("id",last.id);
+if(history.length===0){
 
-if(deleteError)
-throw deleteError;
+striker=
+battingPlayers[0]
+? battingPlayers[0].id
+: null;
+
+runner=
+battingPlayers[1]
+? battingPlayers[1].id
+: null;
+
+runs=0;
+wickets=0;
+playable=0;
+unplayable=0;
+overBalls=0;
+overNo=0;
+pairBalls=0;
+pairNo=1;
+currentBowler=null;
+
+}
 
 
-/* Restore the live state. */
+/*
+Update the live match state only after the DELETE and
+history reload succeeded.
+*/
 
 const {
 data:updated,
@@ -2137,18 +2277,23 @@ await db
 .update({
 
 innings_runs:runs,
+
 innings_wickets:wickets,
 
 playable_balls:playable,
+
 unplayable_balls:unplayable,
 
 over_no:overNo,
+
 over_playable_balls:overBalls,
 
 pair_no:pairNo,
+
 pair_playable_balls:pairBalls,
 
 striker_id:striker,
+
 non_striker_id:runner,
 
 current_bowler_id:currentBowler,
@@ -2156,12 +2301,16 @@ current_bowler_id:currentBowler,
 status:"LIVE"
 
 })
-.eq("match_id",matchId)
+.eq(
+"match_id",
+matchId
+)
 .select()
 .single();
 
 if(stateError)
 throw stateError;
+
 
 live=updated;
 
@@ -2170,21 +2319,20 @@ pendingUnplayable=null;
 render();
 
 await renderStats();
+
 await renderBallByBall();
 
-alert("Laaste bal is ongedaan gemaak.");
 
 }catch(e){
 
-alert(
-"Undo kon nie voltooi word nie.\n\n"+
-e.message
+console.error(
+"Undo failed:",
+e
 );
 
 }
 
 };
-
 
 
 /* BALL-BY-BALL REPORT */
