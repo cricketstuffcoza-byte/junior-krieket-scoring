@@ -3,45 +3,155 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Junior Krieket – Admin Login V16</title>
+<title>Junior Krieket – Admin Portaal V16</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-body{margin:0;background:#eef2f6;color:#172033;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.wrap{max-width:1000px;margin:60px auto;padding:16px}.card{background:#fff;border-radius:18px;padding:22px;box-shadow:0 3px 16px #0001}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}label{display:block;font-weight:700;margin-bottom:6px}input{width:100%;box-sizing:border-box;padding:12px;border:1px solid #ccd3dc;border-radius:10px;font-size:15px}button{border:0;border-radius:11px;padding:12px 16px;font-weight:800;cursor:pointer}.primary{background:#172033;color:#fff}.ghost{background:#eef2f6}.actions{display:flex;gap:8px;margin-top:14px}.info{color:#175cd3}.success{color:#087443}.error{color:#b42318}.hidden{display:none!important}@media(max-width:700px){.grid{grid-template-columns:1fr}}
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#eef2f6}*{box-sizing:border-box}body{margin:0}.wrap{max-width:1180px;margin:auto;padding:18px}.card{background:#fff;border-radius:18px;padding:20px;margin:14px 0;box-shadow:0 3px 16px #0001}.top{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}h1,h2{margin:0 0 8px}.muted{color:#667085}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}label{display:block;font-weight:700;margin-bottom:6px}input{width:100%;padding:12px;border:1px solid #ccd3dc;border-radius:10px;font-size:15px}button{border:0;border-radius:11px;padding:12px 16px;font-weight:800;cursor:pointer}.primary{background:#172033;color:#fff}.ghost{background:#eef2f6}.hidden{display:none!important}.pill{display:inline-block;padding:5px 10px;border-radius:999px;background:#edf2f7;font-size:12px;font-weight:800}.info{color:#175cd3}.success{color:#087443}.error{color:#b42318}.small{font-size:13px}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}.tabs button.active{background:#172033;color:#fff}.tabs button:disabled{opacity:.55;cursor:not-allowed}.statgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.stat{background:#fff;border-radius:16px;padding:18px;box-shadow:0 2px 12px #0001}.num{font-size:30px;font-weight:900;margin-bottom:3px}.status{padding:14px;border-radius:12px;background:#f6f8fa}.status.error{background:#fff3f2}.status.success{background:#ecfdf3}@media(max-width:760px){.grid{grid-template-columns:1fr}.statgrid{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
-<body><div class="wrap">
-<div id="auth" class="card">
-<h1>🏏 Junior Krieket</h1><p>Admin Portaal • V16 Login Test</p>
-<div class="grid"><div><label for="email">E-pos</label><input id="email" type="email" autocomplete="username"></div><div><label for="password">Wagwoord</label><input id="password" type="password" autocomplete="current-password"></div></div>
-<div class="actions"><button type="button" class="primary" id="login">Meld Aan</button></div>
-<p id="msg" class="info">Veilige aanmelding gereed.</p>
+<body>
+<div class="wrap">
+  <div id="auth" class="card">
+    <div class="top"><div><h1>🏏 Junior Krieket</h1><p class="muted">Admin Portaal</p></div><span class="pill">ADMIN V16</span></div>
+    <div class="grid">
+      <div><label for="email">E-pos</label><input id="email" type="email" autocomplete="username"></div>
+      <div><label for="password">Wagwoord</label><input id="password" type="password" autocomplete="current-password"></div>
+    </div>
+    <div class="actions"><button type="button" class="primary" id="login">Meld Aan</button></div>
+    <p id="authMsg" class="small info">Veilige aanmelding gereed.</p>
+  </div>
+
+  <div id="denied" class="card hidden">
+    <h2>🔒 Geen toegang</h2>
+    <p>Die Supabase-aanmelding werk, maar hierdie rekening is nie as Admin gemerk nie.</p>
+    <button type="button" class="ghost" id="deniedLogout">Teken uit</button>
+  </div>
+
+  <div id="app" class="hidden">
+    <div class="card">
+      <div class="top">
+        <div><h1>🔐 Admin Portaal</h1><p id="welcome" class="muted"></p></div>
+        <button type="button" class="ghost" id="logout">Teken uit</button>
+      </div>
+      <div class="tabs">
+        <button type="button" class="active" data-tab="dashboard">📊 Oorsig</button>
+        <button type="button" disabled>🏏 Spanne</button>
+        <button type="button" disabled>👥 Spelers</button>
+        <button type="button" disabled>📅 Wedstryde</button>
+        <button type="button" disabled>🧑‍🏫 Afrigters & Toegang</button>
+        <button type="button" disabled>📍 Venues</button>
+        <button type="button" disabled>👨‍👩‍👧 Goedkeurings</button>
+      </div>
+    </div>
+
+    <section id="dashboard">
+      <div class="statgrid">
+        <div class="stat"><div class="num" id="teamCount">—</div><div>Aktiewe spanne</div></div>
+        <div class="stat"><div class="num" id="playerCount">—</div><div>Aktiewe spelers</div></div>
+        <div class="stat"><div class="num" id="fixtureCount">—</div><div>Wedstryde</div></div>
+        <div class="stat"><div class="num" id="completedCount">—</div><div>Voltooi</div></div>
+      </div>
+      <div class="card">
+        <h2>ℹ️ Dashboard-status</h2>
+        <div id="dataStatus" class="status info">Laai Admin-data…</div>
+      </div>
+      <div class="card">
+        <h2>✅ Stap 2</h2>
+        <p class="muted">Die login en Admin-profielkontrole is nou die ingang na die portaal. Ons toets eers die dashboard-data onafhanklik voordat span-, speler- en wedstrydbestuur geaktiveer word.</p>
+      </div>
+    </section>
+  </div>
 </div>
-<div id="success" class="card hidden"><h1>✅ Admin-aanmelding werk</h1><p id="successText"></p><p class="success">Supabase het die gebruiker suksesvol aangemeld en die Admin-profiel is bevestig.</p><button type="button" class="ghost" id="logout">Teken uit</button></div>
-</div>
+
 <script>
 'use strict';
 const SUPABASE_URL='https://moomommajyldjquncnrd.supabase.co';
 const SUPABASE_KEY='sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH';
 const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-const $=id=>document.getElementById(id);
-function message(text,cls){$('msg').textContent=text;$('msg').className=cls||'info'}
-async function login(){
- const email=$('email').value.trim();
- const password=$('password').value;
- if(!email||!password){message('Vul jou e-pos en wagwoord in.','error');return}
- const b=$('login');b.disabled=true;b.textContent='Meld aan…';message('Verbind met Supabase…','info');
- try{
-  const {data,error}=await db.auth.signInWithPassword({email,password});
+const el=id=>document.getElementById(id);
+
+function msg(id,text,cls='info'){const e=el(id);if(e){e.textContent=text;e.className='small '+cls}}
+function showAuth(){el('auth').classList.remove('hidden');el('denied').classList.add('hidden');el('app').classList.add('hidden')}
+function showDenied(){el('auth').classList.add('hidden');el('denied').classList.remove('hidden');el('app').classList.add('hidden')}
+function showApp(name,email){el('auth').classList.add('hidden');el('denied').classList.add('hidden');el('app').classList.remove('hidden');el('welcome').textContent='Welkom '+(name||email)+' • Admin'}
+
+async function verifyAdmin(session){
+  const {data:profile,error}=await db.from('user_profiles').select('full_name,role').eq('user_id',session.user.id).maybeSingle();
   if(error) throw error;
-  if(!data.session) throw new Error('Supabase het nie ’n aanmeldsessie teruggestuur nie.');
-  const {data:profile,error:profileError}=await db.from('user_profiles').select('full_name,role').eq('user_id',data.user.id).maybeSingle();
-  if(profileError) throw profileError;
   if(!profile) throw new Error('Aanmelding werk, maar jou gebruikersprofiel bestaan nog nie.');
-  if(String(profile.role).toLowerCase()!=='admin') throw new Error('Hierdie rekening is nie as Admin gemerk nie.');
-  $('auth').classList.add('hidden');$('success').classList.remove('hidden');$('successText').textContent='Welkom '+(profile.full_name||data.user.email)+'.';
- }catch(e){console.error(e);message(e.message||'Aanmelding het misluk.','error');await db.auth.signOut()}finally{b.disabled=false;b.textContent='Meld Aan'}
+  if(String(profile.role).toLowerCase()!=='admin') return {allowed:false,profile};
+  return {allowed:true,profile};
 }
-async function logout(){await db.auth.signOut();$('success').classList.add('hidden');$('auth').classList.remove('hidden');message('Uitgeteken.','success')}
-$('login').addEventListener('click',login);$('password').addEventListener('keydown',e=>{if(e.key==='Enter')login()});$('logout').addEventListener('click',logout);
+
+async function countTable(table,activeOnly=false){
+  let query=db.from(table).select('*',{count:'exact',head:true});
+  if(activeOnly) query=query.eq('active',true);
+  const {count,error}=await query;
+  if(error) throw new Error(table+': '+error.message);
+  return count??0;
+}
+
+async function loadDashboard(){
+  el('dataStatus').textContent='Laai spanne, spelers en wedstryde…';
+  el('dataStatus').className='status info';
+  try{
+    const [teams,players,matches,completed]=await Promise.all([
+      countTable('teams',true),
+      countTable('players',true),
+      countTable('matches',false),
+      (async()=>{const {count,error}=await db.from('matches').select('*',{count:'exact',head:true}).eq('status','COMPLETED');if(error)throw new Error('matches: '+error.message);return count??0})()
+    ]);
+    el('teamCount').textContent=teams;
+    el('playerCount').textContent=players;
+    el('fixtureCount').textContent=matches;
+    el('completedCount').textContent=completed;
+    el('dataStatus').textContent='Dashboard-data suksesvol vanaf Supabase gelaai.';
+    el('dataStatus').className='status success';
+  }catch(e){
+    console.error(e);
+    el('dataStatus').textContent='Login is suksesvol, maar dashboard-data kon nie gelaai word nie: '+(e.message||e);
+    el('dataStatus').className='status error';
+  }
+}
+
+async function login(){
+  const email=el('email').value.trim(),password=el('password').value;
+  if(!email||!password){msg('authMsg','Vul jou e-pos en wagwoord in.','error');return}
+  const b=el('login');b.disabled=true;b.textContent='Meld aan…';msg('authMsg','Verbind met Supabase…','info');
+  try{
+    const {data,error}=await db.auth.signInWithPassword({email,password});
+    if(error) throw error;
+    if(!data.session) throw new Error('Supabase het nie ’n aanmeldsessie teruggestuur nie.');
+    const result=await verifyAdmin(data.session);
+    if(!result.allowed){showDenied();return}
+    showApp(result.profile.full_name,data.user.email);
+    msg('authMsg','Aanmelding suksesvol.','success');
+    await loadDashboard();
+  }catch(e){
+    console.error(e);
+    msg('authMsg',e.message||'Aanmelding het misluk.','error');
+    await db.auth.signOut();
+  }finally{b.disabled=false;b.textContent='Meld Aan'}
+}
+
+async function logout(){await db.auth.signOut();showAuth();msg('authMsg','Uitgeteken.','success')}
+async function deniedLogout(){await db.auth.signOut();showAuth();msg('authMsg','Uitgeteken.','success')}
+
+el('login').addEventListener('click',login);
+el('password').addEventListener('keydown',e=>{if(e.key==='Enter')login()});
+el('logout').addEventListener('click',logout);
+el('deniedLogout').addEventListener('click',deniedLogout);
+
+(async()=>{
+  try{
+    const {data:{session}}=await db.auth.getSession();
+    if(!session){showAuth();return}
+    const result=await verifyAdmin(session);
+    if(!result.allowed){showDenied();return}
+    showApp(result.profile.full_name,session.user.email);
+    await loadDashboard();
+  }catch(e){console.error(e);showAuth();msg('authMsg',e.message||'Kon sessie nie herstel nie.','error');await db.auth.signOut()}
+})();
 </script>
-</body></html>
+</body>
+</html>
