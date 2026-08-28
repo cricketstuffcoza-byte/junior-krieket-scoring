@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="af">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Junior Krieket – Admin Login V16</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+body{margin:0;background:#eef2f6;color:#172033;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.wrap{max-width:1000px;margin:60px auto;padding:16px}.card{background:#fff;border-radius:18px;padding:22px;box-shadow:0 3px 16px #0001}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}label{display:block;font-weight:700;margin-bottom:6px}input{width:100%;box-sizing:border-box;padding:12px;border:1px solid #ccd3dc;border-radius:10px;font-size:15px}button{border:0;border-radius:11px;padding:12px 16px;font-weight:800;cursor:pointer}.primary{background:#172033;color:#fff}.ghost{background:#eef2f6}.actions{display:flex;gap:8px;margin-top:14px}.info{color:#175cd3}.success{color:#087443}.error{color:#b42318}.hidden{display:none!important}@media(max-width:700px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body><div class="wrap">
+<div id="auth" class="card">
+<h1>🏏 Junior Krieket</h1><p>Admin Portaal • V16 Login Test</p>
+<div class="grid"><div><label for="email">E-pos</label><input id="email" type="email" autocomplete="username"></div><div><label for="password">Wagwoord</label><input id="password" type="password" autocomplete="current-password"></div></div>
+<div class="actions"><button type="button" class="primary" id="login">Meld Aan</button></div>
+<p id="msg" class="info">Veilige aanmelding gereed.</p>
+</div>
+<div id="success" class="card hidden"><h1>✅ Admin-aanmelding werk</h1><p id="successText"></p><p class="success">Supabase het die gebruiker suksesvol aangemeld en die Admin-profiel is bevestig.</p><button type="button" class="ghost" id="logout">Teken uit</button></div>
+</div>
+<script>
+'use strict';
+const SUPABASE_URL='https://moomommajyldjquncnrd.supabase.co';
+const SUPABASE_KEY='sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH';
+const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=id=>document.getElementById(id);
+function message(text,cls){$('msg').textContent=text;$('msg').className=cls||'info'}
+async function login(){
+ const email=$('email').value.trim();
+ const password=$('password').value;
+ if(!email||!password){message('Vul jou e-pos en wagwoord in.','error');return}
+ const b=$('login');b.disabled=true;b.textContent='Meld aan…';message('Verbind met Supabase…','info');
+ try{
+  const {data,error}=await db.auth.signInWithPassword({email,password});
+  if(error) throw error;
+  if(!data.session) throw new Error('Supabase het nie ’n aanmeldsessie teruggestuur nie.');
+  const {data:profile,error:profileError}=await db.from('user_profiles').select('full_name,role').eq('user_id',data.user.id).maybeSingle();
+  if(profileError) throw profileError;
+  if(!profile) throw new Error('Aanmelding werk, maar jou gebruikersprofiel bestaan nog nie.');
+  if(String(profile.role).toLowerCase()!=='admin') throw new Error('Hierdie rekening is nie as Admin gemerk nie.');
+  $('auth').classList.add('hidden');$('success').classList.remove('hidden');$('successText').textContent='Welkom '+(profile.full_name||data.user.email)+'.';
+ }catch(e){console.error(e);message(e.message||'Aanmelding het misluk.','error');await db.auth.signOut()}finally{b.disabled=false;b.textContent='Meld Aan'}
+}
+async function logout(){await db.auth.signOut();$('success').classList.add('hidden');$('auth').classList.remove('hidden');message('Uitgeteken.','success')}
+$('login').addEventListener('click',login);$('password').addEventListener('keydown',e=>{if(e.key==='Enter')login()});$('logout').addEventListener('click',logout);
+</script>
+</body></html>
