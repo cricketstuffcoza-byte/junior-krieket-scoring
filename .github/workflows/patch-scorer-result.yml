@@ -1,0 +1,89 @@
+name: Patch scorer result controls
+on:
+  push:
+    branches: [portal-v10]
+    paths:
+      - '.github/workflows/patch-scorer-result.yml'
+      - 'scorer.html'
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: ${{ github.event.head_commit.message != 'Apply match result controls' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: portal-v10
+      - name: Patch scorer
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('scorer.html')
+          s=p.read_text(encoding='utf-8')
+          button='''<div class="card"><div class="actions"><button class="danger" id="endMatch">🏁 BEËINDIG WEDSTRYD</button><button class="ghost" id="back">← Terug na fixtures</button></div></div>'''
+          if 'id="endMatch"' not in s:
+              s=s.replace('<div class="card"><button class="ghost" id="back">← Terug na fixtures</button></div>',button)
+          modal='''
+          <div class="modal hidden" id="resultModal"><div class="modalbox">
+          <h2>🏁 Beëindig wedstryd</h2>
+          <p class="muted">Kies die finale status. ’n Gelykop- of nie-gespeelde wedstryd gee 2 ligapunte aan elke span.</p>
+          <label>Wedstrydstatus</label>
+          <select id="resultType">
+          <option value="WIN">🏆 Normale wen</option>
+          <option value="DRAW">🤝 Gelykop</option>
+          <option value="CANCELLED_WEATHER">🌧️ Afgestel – Weer</option>
+          <option value="CANCELLED_NO_SHOW">❌ Span daag nie op nie</option>
+          <option value="POSTPONED">📅 Uitgestel</option>
+          <option value="CANCELLED_MANAGEMENT">🛑 Afgestel deur Bestuur</option>
+          </select><br><br>
+          <div id="winnerWrap"><label>Wenner</label><select id="winnerTeam"></select><br><br></div>
+          <label>Nota / rede (opsioneel)</label><input id="resultReason" placeholder="Kort nota">
+          <div class="actions" style="margin-top:12px"><button class="primary" id="confirmEndMatch">BEVESTIG EN BEËINDIG</button><button class="ghost" id="cancelEndMatch">Kanselleer</button></div>
+          <p id="resultMsg" class="muted"></p>
+          </div></div>
+          '''
+          if 'id="resultModal"' not in s:
+              s=s.replace('<script>',modal+'<script>',1)
+          js=r'''
+          async function openEndMatch(){
+            if(!matchId)return;
+            const a=match?.team_a_id,b=match?.team_b_id;
+            $("winnerTeam").innerHTML=[a,b].filter(Boolean).map(id=>`<option value="${id}">${tname(id)}</option>`).join("");
+            $("resultType").value="WIN";
+            $("winnerWrap").classList.remove("hidden");
+            $("resultMsg").textContent="";
+            $("resultModal").classList.remove("hidden");
+          }
+          async function submitEndMatch(){
+            const type=$("resultType").value;
+            const winner=type==="WIN"?$("winnerTeam").value:null;
+            const reason=$("resultReason").value.trim()||null;
+            if(type==="WIN"&&!winner)return alert("Kies die wenner.");
+            const b=$("confirmEndMatch");b.disabled=true;b.textContent="Stoor…";
+            try{
+              const {error}=await db.rpc("record_match_result",{p_match_id:matchId,p_result_type:type,p_winner_team_id:winner,p_reason:reason});
+              if(error)throw error;
+              $("resultMsg").textContent="Wedstryd is beëindig en ligapunte is gestoor.";
+              $("resultMsg").className="success";
+              $("resultModal").classList.add("hidden");
+              alert("Wedstryd beëindig. Ligapunte is gestoor.");
+              await load();
+            }catch(e){alert("Kon wedstryd nie beëindig nie.\n\n"+e.message)}
+            finally{b.disabled=false;b.textContent="BEVESTIG EN BEËINDIG"}
+          }
+          '''
+          if 'async function openEndMatch()' not in s:
+              marker='$("back").onclick=()=>location.href="index.html";'
+              if marker in s:
+                  s=s.replace(marker,js+'\n'+marker+'\n$("endMatch").onclick=openEndMatch;$("confirmEndMatch").onclick=submitEndMatch;$("cancelEndMatch").onclick=()=>$("resultModal").classList.add("hidden");$("resultType").onchange=()=>$("winnerWrap").classList.toggle("hidden",$("resultType").value!=="WIN");')
+              else:
+                  s=s.replace('load().catch(e=>alert(e.message));',js+'\n$("endMatch").onclick=openEndMatch;$("confirmEndMatch").onclick=submitEndMatch;$("cancelEndMatch").onclick=()=>$("resultModal").classList.add("hidden");$("resultType").onchange=()=>$("winnerWrap").classList.toggle("hidden",$("resultType").value!=="WIN");\nload().catch(e=>alert(e.message));')
+          p.write_text(s,encoding='utf-8')
+      - name: Commit patched scorer
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scorer.html
+          git diff --cached --quiet || git commit -m "Apply match result controls"
+          git push
