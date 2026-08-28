@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="af">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Junior Krieket – Admin Portaal V18</title>
+<style>body{font-family:system-ui,sans-serif;background:#eef2f6;color:#172033;margin:0}.loading{max-width:700px;margin:15vh auto;background:#fff;border-radius:18px;padding:28px;box-shadow:0 3px 16px #0001}.error{color:#b42318}</style>
+</head>
+<body>
+<div class="loading" id="loading"><h1>🔐 Admin Portaal V18</h1><p>Laai die volledige Admin-portaal…</p></div>
+<script>
+(async()=>{
+  try{
+    const res=await fetch('admin-v17.html',{cache:'no-store'});
+    if(!res.ok) throw new Error('Kon die bestaande Admin-portaal nie laai nie.');
+    const html=await res.text();
+    const doc=new DOMParser().parseFromString(html,'text/html');
+    doc.title='Junior Krieket – Admin Portaal V18';
+
+    const coachCard=[...doc.querySelectorAll('#coaches .grid')][0];
+    if(coachCard){
+      const oldName=coachCard.querySelector('#coachName');
+      if(oldName){
+        const wrap=oldName.closest('div');
+        wrap.innerHTML='<label>Voornaam</label><input id="coachFirst" autocomplete="given-name">';
+        const surname=document.createElement('div');
+        surname.innerHTML='<label>Van</label><input id="coachSurname" autocomplete="family-name">';
+        coachCard.insertBefore(surname,wrap.nextSibling);
+      }
+    }
+
+    const patch=doc.createElement('script');
+    patch.textContent=`
+      (function(){
+        const badge=document.querySelector('#auth .pill'); if(badge) badge.textContent='ADMIN V18';
+        const h=document.querySelector('#app h1'); if(h) h.textContent='🔐 Admin Portaal V18';
+        const btn=document.getElementById('addCoach');
+        if(!btn) return;
+        btn.onclick=async function(){
+          try{
+            const first=document.getElementById('coachFirst').value.trim();
+            const surname=document.getElementById('coachSurname').value.trim();
+            const email=document.getElementById('coachEmail').value.trim();
+            const password=document.getElementById('coachPassword').value;
+            const selected=[...document.querySelectorAll('#coachTeams input[type=checkbox]:checked')].map(x=>x.value);
+            if(!first||!surname) throw new Error('Vul asseblief die afrigter se voornaam en van in.');
+            if(!email) throw new Error('Vul asseblief die e-posadres in.');
+            if(password.length<6) throw new Error('Die wagwoord moet minstens 6 karakters wees.');
+            msg('coachMsg','Skep afrigter…');
+            const {data,error}=await db.functions.invoke('admin-create-coach',{body:{first_name:first,surname,email,password,team_ids:selected}});
+            if(error) throw error;
+            if(data?.error) throw new Error(data.error);
+            document.getElementById('coachFirst').value='';
+            document.getElementById('coachSurname').value='';
+            document.getElementById('coachEmail').value='';
+            document.getElementById('coachPassword').value='';
+            document.querySelectorAll('#coachTeams input[type=checkbox]').forEach(x=>x.checked=false);
+            msg('coachMsg','Afrigter suksesvol bygevoeg.','success');
+            if(typeof loadCoaches==='function') await loadCoaches();
+          }catch(e){ msg('coachMsg',e?.message||'Kon nie afrigter skep nie.','error'); }
+        };
+      })();
+    `;
+    doc.body.appendChild(patch);
+    document.open();
+    document.write('<!doctype html>'+doc.documentElement.outerHTML);
+    document.close();
+  }catch(e){
+    document.getElementById('loading').innerHTML='<h1>Admin V18</h1><p class="error">'+String(e.message||e)+'</p>';
+  }
+})();
+</script>
+</body>
+</html>
