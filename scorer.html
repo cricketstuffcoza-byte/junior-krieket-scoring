@@ -307,6 +307,20 @@ Daarna word die vervangende Coach Throw as die speelbare bal aangeteken.
 
 <div class="card">
 
+<h2>📋 Bal-vir-Bal Verslag</h2>
+
+<p class="muted">
+Gebruik hierdie verslag om die afrigter te laat bevestig dat die live telling
+volledig op datum is. Die nuutste bal verskyn onderaan.
+</p>
+
+<div id="ballByBall"></div>
+
+</div>
+
+
+<div class="card">
+
 <button class="ghost" id="back">
 ← Terug na fixtures
 </button>
@@ -695,6 +709,7 @@ $("#meta").textContent=
 render();
 
 await renderStats();
+await renderBallByBall();
 
 }
 
@@ -1214,6 +1229,7 @@ pendingUnplayable=null;
 render();
 
 await renderStats();
+await renderBallByBall();
 
 
 if(
@@ -2154,6 +2170,7 @@ pendingUnplayable=null;
 render();
 
 await renderStats();
+await renderBallByBall();
 
 alert("Laaste bal is ongedaan gemaak.");
 
@@ -2167,6 +2184,131 @@ e.message
 }
 
 };
+
+
+
+/* BALL-BY-BALL REPORT */
+
+async function renderBallByBall(){
+
+ try{
+
+  const {
+   data:events,
+   error
+  }=
+  await db
+  .from("ball_events")
+  .select("*")
+  .eq("innings_id",innings.id)
+  .order("created_at",{ascending:true})
+  .order("id",{ascending:true});
+
+  if(error) throw error;
+
+  const rows=events||[];
+
+  if(!rows.length){
+
+   $("#ballByBall").innerHTML=
+   `<p class="muted">Nog geen balle aangeteken nie.</p>`;
+
+   return;
+  }
+
+  $("#ballByBall").innerHTML=
+  `
+  <div style="overflow-x:auto">
+
+  <table>
+
+  <tr>
+  <th>#</th>
+  <th>Over</th>
+  <th>Bal</th>
+  <th>Kolwer</th>
+  <th>Bouler</th>
+  <th>Gebeurtenis</th>
+  <th>Runs</th>
+  <th>Wicket</th>
+  <th>Fielding</th>
+  <th>Totaal</th>
+  </tr>
+
+  ${rows.map((e,i)=>{
+
+   const eventRuns=Number(e.runs)||0;
+
+   let eventName="Bal";
+
+   if(e.event_type==="WIDE")
+    eventName="WIDE";
+
+   else if(e.event_type==="NO_BALL")
+    eventName="NO-BALL";
+
+   else if(e.event_type==="COACH_THROW")
+    eventName="COACH THROW";
+
+   else
+    eventName="Normale bal";
+
+   const wicket=
+    e.dismissal_type
+    ? e.dismissal_type.replaceAll("_"," ")
+    : "—";
+
+   let fielding="—";
+
+   if(e.dismissal_type==="CATCH")
+    fielding=`Catch: ${pname(e.fielder_id)}`;
+
+   else if(e.dismissal_type==="RUN_OUT")
+    fielding=`Run Out: ${pname(e.fielder_id)}`;
+
+   return `
+   <tr>
+
+   <td>${i+1}</td>
+
+   <td>${Number(e.over_no)||0}</td>
+
+   <td>${Number(e.ball_no)||0}</td>
+
+   <td>${pname(e.striker_id)}</td>
+
+   <td>${e.bowler_id?pname(e.bowler_id):"Coach"}</td>
+
+   <td>${eventName}</td>
+
+   <td>${eventRuns}</td>
+
+   <td>${wicket}</td>
+
+   <td>${fielding}</td>
+
+   <td>—</td>
+
+   </tr>
+   `;
+
+  }).join("")}
+
+  </table>
+
+  </div>
+  `;
+
+ }catch(e){
+
+  $("#ballByBall").innerHTML=
+  `<p class="muted">
+  Bal-vir-bal verslag kon nie laai nie: ${e.message}
+  </p>`;
+
+ }
+
+}
 
 
 /* BACK */
