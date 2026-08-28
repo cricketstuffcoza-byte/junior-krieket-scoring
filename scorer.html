@@ -1,143 +1,1627 @@
 <!doctype html>
-<html lang="af"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Live Scoring</title><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<html lang="af">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Live Scoring</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
-:root{font-family:system-ui,-apple-system,sans-serif;color:#172033;background:#eef2f6}*{box-sizing:border-box}
-body{margin:0}.wrap{max-width:1050px;margin:auto;padding:10px}.card{background:white;border-radius:18px;padding:16px;margin:10px 0;box-shadow:0 3px 15px #0001}
-.top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}.score{font-size:44px;font-weight:900}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
-.player{padding:14px;border:2px solid #e2e8f0;border-radius:13px}.active{border-color:#172033}.actions{display:flex;gap:8px;flex-wrap:wrap}
-button,select{border:0;border-radius:11px;padding:13px 16px;font-weight:900;font-size:16px}button{cursor:pointer}.run{background:#f1f5f9;min-width:58px}.wide{background:#fff3cd}.nb{background:#fee2e2}.coach{background:#e0f2fe}.primary{background:#172033;color:#fff}.danger{background:#fee2e2;color:#991b1b}
-select{border:1px solid #ccd3dc;background:white;width:100%}.muted{color:#667085}.hidden{display:none!important}.modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:18px;z-index:10}.modalbox{background:#fff;border-radius:18px;padding:20px;max-width:600px;width:100%}
-table{width:100%;border-collapse:collapse}td,th{padding:7px;border-bottom:1px solid #e5e7eb;text-align:left}
-@media(max-width:650px){.grid{grid-template-columns:1fr}.score{font-size:38px}}
-</style></head>
-<body><div class="wrap">
-<div class="card"><div class="top"><div><h1 id="title">🏏 Live Scoring</h1><div id="meta" class="muted"></div></div><div><div id="score" class="score">0/0</div><div id="balls" class="muted">0/60 speelbare balle</div></div></div></div>
-<div class="card"><div class="grid"><div><div class="muted">Kolfpaar</div><h2 id="pair">Paar 1</h2><div class="grid"><div class="player active">🏏 <span id="striker">—</span></div><div class="player">🏃 <span id="runner">—</span></div></div></div><div><div class="muted">Bouler</div><h2 id="bowler">—</h2><div id="bowlerStats" class="muted"></div><button class="primary" id="chooseBowler">KIES BOULER</button></div></div></div>
-<div class="card"><h3>🏏 Speelbare bal</h3><div class="actions"><button class="run" data-run="0">0</button><button class="run" data-run="1">1</button><button class="run" data-run="2">2</button><button class="run" data-run="3">3</button><button class="run" data-run="4">4</button><button class="run" data-run="6">6</button></div>
-<h3>🚨 Onspeelbare bal</h3><div class="actions"><button class="wide" id="wide">WIDE</button><button class="nb" id="nb">NO-BALL</button></div>
-<p class="muted">Wide/No-ball tel nie as speelbare bal nie. Daarna word die vervangende Coach Throw as die speelbare bal aangeteken.</p></div>
-<div class="card"><h2>📊 Bouler se beurt</h2><div id="bowlerTable"></div></div>
-<div class="card"><h2>📈 Huidige spelerstatistiek</h2><div id="playerTable"></div></div>
-<div class="card"><button class="ghost" id="back">← Terug na fixtures</button></div>
+:root{
+font-family:system-ui,-apple-system,sans-serif;
+color:#172033;
+background:#eef2f6
+}
+
+*{
+box-sizing:border-box
+}
+
+body{
+margin:0
+}
+
+.wrap{
+max-width:1050px;
+margin:auto;
+padding:10px
+}
+
+.card{
+background:white;
+border-radius:18px;
+padding:16px;
+margin:10px 0;
+box-shadow:0 3px 15px #0001
+}
+
+.top{
+display:flex;
+justify-content:space-between;
+gap:10px;
+flex-wrap:wrap
+}
+
+.score{
+font-size:44px;
+font-weight:900
+}
+
+.grid{
+display:grid;
+grid-template-columns:repeat(2,1fr);
+gap:10px
+}
+
+.player{
+padding:14px;
+border:2px solid #e2e8f0;
+border-radius:13px
+}
+
+.active{
+border-color:#172033
+}
+
+.actions{
+display:flex;
+gap:8px;
+flex-wrap:wrap
+}
+
+button,select{
+border:0;
+border-radius:11px;
+padding:13px 16px;
+font-weight:900;
+font-size:16px
+}
+
+button{
+cursor:pointer
+}
+
+.run{
+background:#f1f5f9;
+min-width:58px
+}
+
+.wide{
+background:#fff3cd
+}
+
+.nb{
+background:#fee2e2
+}
+
+.coach{
+background:#e0f2fe
+}
+
+.primary{
+background:#172033;
+color:#fff
+}
+
+.danger{
+background:#fee2e2;
+color:#991b1b
+}
+
+select{
+border:1px solid #ccd3dc;
+background:white;
+width:100%
+}
+
+.muted{
+color:#667085
+}
+
+.hidden{
+display:none!important
+}
+
+.modal{
+position:fixed;
+inset:0;
+background:#0008;
+display:flex;
+align-items:center;
+justify-content:center;
+padding:18px;
+z-index:10
+}
+
+.modalbox{
+background:#fff;
+border-radius:18px;
+padding:20px;
+max-width:600px;
+width:100%
+}
+
+table{
+width:100%;
+border-collapse:collapse
+}
+
+td,th{
+padding:7px;
+border-bottom:1px solid #e5e7eb;
+text-align:left
+}
+
+@media(max-width:650px){
+.grid{
+grid-template-columns:1fr
+}
+
+.score{
+font-size:38px
+}
+}
+</style>
+</head>
+
+<body>
+
+<div class="wrap">
+
+<div class="card">
+<div class="top">
+
+<div>
+<h1 id="title">🏏 Live Scoring</h1>
+<div id="meta" class="muted"></div>
 </div>
 
-<div class="modal hidden" id="coachModal"><div class="modalbox"><h2>🟠 Coach Throw</h2><p id="coachHelp"></p><h3>Wat het met die Coach Throw gebeur?</h3><div class="actions"><button class="run" data-ct="0">0</button><button class="run" data-ct="1">1</button><button class="run" data-ct="2">2</button><button class="run" data-ct="3">3</button><button class="run" data-ct="4">4</button><button class="run" data-ct="6">6</button><button class="danger" id="ctWicket">WICKET</button></div></div></div>
-<div class="modal hidden" id="wicketModal"><div class="modalbox"><h2>🧤 Wicket</h2><select id="dismissal"><option value="">Kies dismissal</option><option value="BOWLED">Bowled</option><option value="CATCH">Catch</option><option value="RUN_OUT">Run Out</option></select><br><br><select id="fielder" class="hidden"></select><div class="actions"><button class="primary" id="confirmWicket">BEVESTIG</button><button class="ghost" id="cancelWicket">Kanselleer</button></div></div></div>
-<div class="modal hidden" id="bowlerModal"><div class="modalbox"><h2>🎯 Kies bouler</h2><div id="bowlerChoices" class="actions"></div></div></div>
-<div class="modal hidden" id="pairModal"><div class="modalbox"><h2>👥 Kies volgende kolfpaar</h2><p id="pairHelp"></p><div id="pairChoices"></div><div class="actions"><button class="primary" id="confirmPair">BEVESTIG</button></div></div></div>
+<div>
+<div id="score" class="score">0/0</div>
+<div id="balls" class="muted">0/60 speelbare balle</div>
+</div>
+
+</div>
+</div>
+
+
+<div class="card">
+
+<div class="grid">
+
+<div>
+
+<div class="muted">Kolfpaar</div>
+
+<h2 id="pair">Paar 1</h2>
+
+<div class="grid">
+
+<div class="player active">
+🏏 <span id="striker">—</span>
+</div>
+
+<div class="player">
+🏃 <span id="runner">—</span>
+</div>
+
+</div>
+
+</div>
+
+
+<div>
+
+<div class="muted">Bouler</div>
+
+<h2 id="bowler">—</h2>
+
+<div id="bowlerStats" class="muted"></div>
+
+<button class="primary" id="chooseBowler">
+KIES BOULER
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+
+<div class="card">
+
+<h3>🏏 Speelbare bal</h3>
+
+<div class="actions">
+
+<button class="run" data-run="0">0</button>
+<button class="run" data-run="1">1</button>
+<button class="run" data-run="2">2</button>
+<button class="run" data-run="3">3</button>
+<button class="run" data-run="4">4</button>
+<button class="run" data-run="6">6</button>
+
+</div>
+
+
+<h3>🚨 Onspeelbare bal</h3>
+
+<div class="actions">
+
+<button class="wide" id="wide">
+WIDE
+</button>
+
+<button class="nb" id="nb">
+NO-BALL
+</button>
+
+</div>
+
+<p class="muted">
+Wide/No-ball tel nie as speelbare bal nie.
+Daarna word die vervangende Coach Throw as die speelbare bal aangeteken.
+</p>
+
+</div>
+
+
+<div class="card">
+
+<h2>📊 Bouler se beurt</h2>
+
+<div id="bowlerTable"></div>
+
+</div>
+
+
+<div class="card">
+
+<h2>📈 Huidige spelerstatistiek</h2>
+
+<div id="playerTable"></div>
+
+</div>
+
+
+<div class="card">
+
+<button class="ghost" id="back">
+← Terug na fixtures
+</button>
+
+</div>
+
+</div>
+
+
+<!-- COACH THROW MODAL -->
+
+<div class="modal hidden" id="coachModal">
+
+<div class="modalbox">
+
+<h2>🟠 Coach Throw</h2>
+
+<p id="coachHelp"></p>
+
+<h3>Wat het met die Coach Throw gebeur?</h3>
+
+<div class="actions">
+
+<button class="run" data-ct="0">0</button>
+<button class="run" data-ct="1">1</button>
+<button class="run" data-ct="2">2</button>
+<button class="run" data-ct="3">3</button>
+<button class="run" data-ct="4">4</button>
+<button class="run" data-ct="6">6</button>
+
+<button class="danger" id="ctWicket">
+WICKET
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+
+<!-- WICKET MODAL -->
+
+<div class="modal hidden" id="wicketModal">
+
+<div class="modalbox">
+
+<h2>🧤 Wicket</h2>
+
+<select id="dismissal">
+
+<option value="">
+Kies dismissal
+</option>
+
+<option value="BOWLED">
+Bowled
+</option>
+
+<option value="CATCH">
+Catch
+</option>
+
+<option value="RUN_OUT">
+Run Out
+</option>
+
+</select>
+
+<br><br>
+
+<select id="fielder" class="hidden"></select>
+
+<div class="actions">
+
+<button class="primary" id="confirmWicket">
+BEVESTIG
+</button>
+
+<button class="ghost" id="cancelWicket">
+Kanselleer
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+
+<!-- BOWLER MODAL -->
+
+<div class="modal hidden" id="bowlerModal">
+
+<div class="modalbox">
+
+<h2>🎯 Kies bouler</h2>
+
+<div id="bowlerChoices" class="actions"></div>
+
+<br>
+
+<div class="actions">
+
+<button type="button" class="ghost" id="cancelBowler">
+Kanselleer
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+
+<!-- PAIR MODAL -->
+
+<div class="modal hidden" id="pairModal">
+
+<div class="modalbox">
+
+<h2>👥 Kies volgende kolfpaar</h2>
+
+<p id="pairHelp"></p>
+
+<div id="pairChoices"></div>
+
+<div class="actions">
+
+<button class="primary" id="confirmPair">
+BEVESTIG
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+
 <script>
-const SUPABASE_URL="https://moomommajyldjquncnrd.supabase.co", SUPABASE_PUBLISHABLE_KEY="sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH";
-const {createClient}=supabase, db=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY), matchId=new URLSearchParams(location.search).get("match");
-const $=s=>document.querySelector(s);let match,teams,players=[],innings,live,pendingUnplayable=null,selectedFielder=null;
 
-async function get(table,sel="*"){const {data,error}=await db.from(table).select(sel);if(error)throw error;return data||[]}
-async function one(table,filters){let q=db.from(table).select("*");for(const [k,v] of Object.entries(filters))q=q.eq(k,v);const {data,error}=await q.single();if(error)throw error;return data}
-function pname(id){const p=players.find(x=>x.id===id);return p?p.first_name+" "+p.surname:"—"}
-function tname(id){const t=teams.find(x=>x.id===id);return t?t.name:"—"}
+const SUPABASE_URL =
+"https://moomommajyldjquncnrd.supabase.co";
+
+const SUPABASE_PUBLISHABLE_KEY =
+"sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH";
+
+const {
+createClient
+}=supabase;
+
+const db=createClient(
+SUPABASE_URL,
+SUPABASE_PUBLISHABLE_KEY
+);
+
+const matchId=
+new URLSearchParams(location.search).get("match");
+
+const $=s=>document.querySelector(s);
+
+let match;
+let teams;
+let players=[];
+let innings;
+let live;
+let pendingUnplayable=null;
+let selectedFielder=null;
+
+
+/* DATABASE HELPERS */
+
+async function get(table,sel="*"){
+
+const {
+data,
+error
+}=await db
+.from(table)
+.select(sel);
+
+if(error) throw error;
+
+return data||[];
+
+}
+
+
+async function one(table,filters){
+
+let q=db
+.from(table)
+.select("*");
+
+for(
+const [k,v]
+of Object.entries(filters)
+){
+q=q.eq(k,v);
+}
+
+const {
+data,
+error
+}=await q.single();
+
+if(error) throw error;
+
+return data;
+
+}
+
+
+/* PLAYER / TEAM NAMES */
+
+function pname(id){
+
+const p=
+players.find(x=>x.id===id);
+
+return p
+? p.first_name+" "+p.surname
+: "—";
+
+}
+
+
+function tname(id){
+
+const t=
+teams.find(x=>x.id===id);
+
+return t
+? t.name
+: "—";
+
+}
+
+
+/* LOAD MATCH */
+
 async function load(){
- if(!matchId)throw Error("Geen match-ID.");
- const m=await one("matches",{id:matchId});match=m;teams=await get("teams");players=await get("players");
- innings=await one("innings",{match_id:matchId,innings_no:m.first_batting_team_id?1:1});
- live=await one("live_match_state",{match_id:matchId});
- $("#title").textContent=`🏏 ${m.age_group} • ${tname(innings.batting_team_id)} kolf`;
- $("#meta").textContent=`${tname(m.team_a_id)} vs ${tname(m.team_b_id)} • ${m.match_date} • ${String(m.match_time).slice(0,5)} • 📍 ${m.venue}`;
- render(); await renderStats();
-}
-function render(){
- $("#score").textContent=`${live.innings_runs}/${live.innings_wickets}`;
- $("#balls").textContent=`${live.playable_balls}/60 speelbare balle • ${live.unplayable_balls} onspeelbare balle`;
- $("#pair").textContent=`Paar ${live.pair_no} • ${live.pair_playable_balls}/12`;
- $("#striker").textContent=pname(live.striker_id);$("#runner").textContent=pname(live.non_striker_id);$("#bowler").textContent=pname(live.current_bowler_id);
-}
-async function chooseBowler(){
- const field=players.filter(p=>p.team_id===innings.fielding_team_id&&p.active);
- $("#bowlerChoices").innerHTML=field.map(p=>`<button onclick="setBowler('${p.id}')">${p.first_name} ${p.surname}</button>`).join("");
- $("#bowlerModal").classList.remove("hidden");
-}
-window.setBowler=async id=>{
- const {error}=await db.from("live_match_state").update({current_bowler_id:id}).eq("match_id",matchId);if(error)alert(error.message);else{$("#bowlerModal").classList.add("hidden");await load()}
-}
-$("#chooseBowler").onclick=chooseBowler;
-async function record(type,runs=0,extra={}){
- try{
-   if(type==="COACH_THROW") {
-     // coach throw itself is the replacement playable ball; its original unplayable event
-     // remains a separate ball event for bowler/unplayable statistics.
-   }
-   const event={
-     innings_id:innings.id,over_no:live.over_no,ball_no:live.over_playable_balls+1,
-     event_type:type,runs,
-     bowler_id:type==="COACH_THROW"?null:live.current_bowler_id,
-     striker_id:live.striker_id,non_striker_id:live.non_striker_id,
-     playable_ball:type==="WIDE"||type==="NO_BALL"?false:true,
-     unplayable_ball:type==="WIDE"||type==="NO_BALL",
-     coach_throw:type==="COACH_THROW",
-     previous_unplayable_event:extra.previousUnplayable||null,
-     dismissal_type:extra.dismissal_type||null,fielder_id:extra.fielder_id||null
-   };
-   const {error}=await db.from("ball_events").insert(event);if(error)throw error;
 
-   // Update live state. Only playable events advance over/pair/60 counters.
-   let runsTotal=live.innings_runs+runs, wickets=live.innings_wickets+(extra.dismissal_type?1:0);
-   let pb=live.playable_balls+(event.playable_ball?1:0), ub=live.unplayable_balls+(event.unplayable_ball?1:0);
-   let pairBalls=live.pair_playable_balls+(event.playable_ball?1:0), overBalls=live.over_playable_balls+(event.playable_ball?1:0);
-   let striker=live.striker_id, runner=live.non_striker_id;
-   if(runs%2===1){[striker,runner]=[runner,striker]}
-   let over=live.over_no, bowler=live.current_bowler_id;
-   if(overBalls>=6){over++;overBalls=0;[striker,runner]=[runner,striker];bowler=null}
-   let pair=live.pair_no,status=pb>=60?"INNINGS_COMPLETE":"LIVE";
-   if(pairBalls>=12){pair++;pairBalls=0;status=pb>=60?"INNINGS_COMPLETE":"PAIR_COMPLETE"}
-   const {error:e2}=await db.from("live_match_state").update({
-     innings_runs:runsTotal,innings_wickets:wickets,playable_balls:pb,unplayable_balls:ub,
-     over_no:over,over_playable_balls:overBalls,pair_no:pair,pair_playable_balls:pairBalls,
-     striker_id:striker,non_striker_id:runner,current_bowler_id:bowler,status
-   }).eq("match_id",matchId);if(e2)throw e2;
-   if(type==="COACH_THROW"||type==="WIDE"||type==="NO_BALL") pendingUnplayable=null;
-   await load();
-   if(status==="PAIR_COMPLETE" || status==="INNINGS_COMPLETE") openPairChoice();
- }catch(e){alert(e.message)}
+if(!matchId)
+throw Error("Geen match-ID.");
+
+const m=
+await one(
+"matches",
+{id:matchId}
+);
+
+match=m;
+
+teams=
+await get("teams");
+
+players=
+await get("players");
+
+innings=
+await one(
+"innings",
+{
+match_id:matchId,
+innings_no:m.first_batting_team_id?1:1
 }
-document.querySelectorAll("[data-run]").forEach(b=>b.onclick=()=>record("NORMAL",+b.dataset.run));
-$("#wide").onclick=()=>{pendingUnplayable="WIDE";$("#coachHelp").textContent="WIDE aangeteken. Dit tel as onspeelbaar. Kies nou die vervangende Coach Throw.";$("#coachModal").classList.remove("hidden")};
-$("#nb").onclick=()=>{pendingUnplayable="NO_BALL";$("#coachHelp").textContent="NO-BALL aangeteken. Dit tel as onspeelbaar. Kies nou die vervangende Coach Throw.";$("#coachModal").classList.remove("hidden")};
-document.querySelectorAll("[data-ct]").forEach(b=>b.onclick=()=>{$("#coachModal").classList.add("hidden");record("COACH_THROW",+b.dataset.ct,{previousUnplayable:pendingUnplayable})});
-$("#ctWicket").onclick=()=>{$("#coachModal").classList.add("hidden");$("#wicketModal").classList.remove("hidden")};
-$("#dismissal").onchange=async()=>{
- const d=$("#dismissal").value;
- if(d==="CATCH"||d==="RUN_OUT"){const field=players.filter(p=>p.team_id===innings.fielding_team_id&&p.active);$("#fielder").innerHTML=field.map(p=>`<option value="${p.id}">${p.first_name} ${p.surname}</option>`).join("");$("#fielder").classList.remove("hidden")}
- else $("#fielder").classList.add("hidden");
+);
+
+live=
+await one(
+"live_match_state",
+{
+match_id:matchId
+}
+);
+
+
+$("#title").textContent=
+`🏏 ${m.age_group} • ${tname(innings.batting_team_id)} kolf`;
+
+$("#meta").textContent=
+`${tname(m.team_a_id)} vs ${tname(m.team_b_id)} • ${m.match_date} • ${String(m.match_time).slice(0,5)} • 📍 ${m.venue}`;
+
+render();
+
+await renderStats();
+
+}
+
+
+/* RENDER MAIN SCORE */
+
+function render(){
+
+$("#score").textContent=
+`${live.innings_runs}/${live.innings_wickets}`;
+
+$("#balls").textContent=
+`${live.playable_balls}/60 speelbare balle • ${live.unplayable_balls} onspeelbare balle`;
+
+$("#pair").textContent=
+`Paar ${live.pair_no} • ${live.pair_playable_balls}/12`;
+
+$("#striker").textContent=
+pname(live.striker_id);
+
+$("#runner").textContent=
+pname(live.non_striker_id);
+
+$("#bowler").textContent=
+pname(live.current_bowler_id);
+
+}
+
+
+/*
+FIELDING TEAM
+
+The original problem was that the code depended
+directly on innings.fielding_team_id.
+
+This version first uses that value.
+
+If it is missing, it determines the fielding team
+by looking at which team is NOT batting.
+*/
+
+function fieldingTeamId(){
+
+if(
+innings?.fielding_team_id
+){
+return innings.fielding_team_id;
+}
+
+
+if(
+match?.team_a_id &&
+match?.team_b_id &&
+innings?.batting_team_id
+){
+
+return String(
+innings.batting_team_id
+)===String(
+match.team_a_id
+)
+? match.team_b_id
+: match.team_a_id;
+
+}
+
+
+return null;
+
+}
+
+
+/* ACTIVE PLAYERS FOR FIELDING TEAM */
+
+function activeTeamPlayers(teamId){
+
+return players.filter(
+p=>
+String(p.team_id)===String(teamId)
+&&
+p.active!==false
+);
+
+}
+
+
+/* CHOOSE BOWLER */
+
+async function chooseBowler(){
+
+const field=
+activeTeamPlayers(
+fieldingTeamId()
+);
+
+
+if(!field.length){
+
+alert(
+"Geen bowlers gevind vir die veldwerkende span nie. Kontroleer die spelers se team_id in Supabase."
+);
+
+return;
+
+}
+
+
+$("#bowlerChoices").innerHTML=
+
+field.map(
+p=>
+`<button
+type="button"
+onclick="setBowler('${p.id}')">
+${p.first_name} ${p.surname}
+</button>`
+).join("");
+
+
+$("#bowlerModal")
+.classList
+.remove("hidden");
+
+}
+
+
+/* SET BOWLER */
+
+window.setBowler=
+async id=>{
+
+const {
+error
+}=await db
+.from("live_match_state")
+.update({
+current_bowler_id:id
+})
+.eq(
+"match_id",
+matchId
+);
+
+
+if(error){
+
+alert(error.message);
+
+}else{
+
+$("#bowlerModal")
+.classList
+.add("hidden");
+
+await load();
+
+}
+
 };
-$("#confirmWicket").onclick=async()=>{
- const d=$("#dismissal").value;if(!d)return alert("Kies dismissal.");
- const f=(d==="CATCH"||d==="RUN_OUT")?$("#fielder").value:null;
- $("#wicketModal").classList.add("hidden");
- await record("COACH_THROW",0,{previousUnplayable:pendingUnplayable,dismissal_type:d,fielder_id:f});
- pendingUnplayable=null;
+
+
+$("#chooseBowler")
+.onclick=
+chooseBowler;
+
+
+$("#cancelBowler")
+.onclick=
+()=>$("#bowlerModal")
+.classList.add("hidden");
+
+
+$("#bowlerModal")
+.addEventListener(
+"click",
+e=>{
+
+if(
+e.target===
+$("#bowlerModal")
+){
+
+$("#bowlerModal")
+.classList
+.add("hidden");
+
+}
+
+}
+);
+
+
+/* RECORD BALL */
+
+async function record(
+type,
+runs=0,
+extra={}
+){
+
+try{
+
+const event={
+
+innings_id:
+innings.id,
+
+over_no:
+live.over_no,
+
+ball_no:
+live.over_playable_balls+1,
+
+event_type:
+type,
+
+runs,
+
+bowler_id:
+type==="COACH_THROW"
+? null
+: live.current_bowler_id,
+
+striker_id:
+live.striker_id,
+
+non_striker_id:
+live.non_striker_id,
+
+playable_ball:
+type==="WIDE"||
+type==="NO_BALL"
+? false
+: true,
+
+unplayable_ball:
+type==="WIDE"||
+type==="NO_BALL",
+
+coach_throw:
+type==="COACH_THROW",
+
+previous_unplayable_event:
+extra.previousUnplayable||null,
+
+dismissal_type:
+extra.dismissal_type||null,
+
+fielder_id:
+extra.fielder_id||null
+
 };
-$("#cancelWicket").onclick=()=>$("#wicketModal").classList.add("hidden");
+
+
+const {
+error
+}=await db
+.from("ball_events")
+.insert(event);
+
+if(error)
+throw error;
+
+
+/* UPDATE LIVE STATE */
+
+let runsTotal=
+live.innings_runs+runs;
+
+let wickets=
+live.innings_wickets+
+(extra.dismissal_type?1:0);
+
+let pb=
+live.playable_balls+
+(event.playable_ball?1:0);
+
+let ub=
+live.unplayable_balls+
+(event.unplayable_ball?1:0);
+
+let pairBalls=
+live.pair_playable_balls+
+(event.playable_ball?1:0);
+
+let overBalls=
+live.over_playable_balls+
+(event.playable_ball?1:0);
+
+let striker=
+live.striker_id;
+
+let runner=
+live.non_striker_id;
+
+
+/* CHANGE STRIKER ON ODD RUN */
+
+if(
+runs%2===1
+){
+
+[
+striker,
+runner
+]=[
+runner,
+striker
+];
+
+}
+
+
+let over=
+live.over_no;
+
+let bowler=
+live.current_bowler_id;
+
+
+/* END OVER */
+
+if(
+overBalls>=6
+){
+
+over++;
+
+overBalls=0;
+
+[
+striker,
+runner
+]=[
+runner,
+striker
+];
+
+bowler=null;
+
+}
+
+
+/* PAIR / INNINGS STATUS */
+
+let pair=
+live.pair_no;
+
+let status=
+pb>=60
+? "INNINGS_COMPLETE"
+: "LIVE";
+
+
+if(
+pairBalls>=12
+){
+
+pair++;
+
+pairBalls=0;
+
+status=
+pb>=60
+? "INNINGS_COMPLETE"
+: "PAIR_COMPLETE";
+
+}
+
+
+/* SAVE LIVE STATE */
+
+const {
+error:e2
+}=await db
+.from("live_match_state")
+.update({
+
+innings_runs:
+runsTotal,
+
+innings_wickets:
+wickets,
+
+playable_balls:
+pb,
+
+unplayable_balls:
+ub,
+
+over_no:
+over,
+
+over_playable_balls:
+overBalls,
+
+pair_no:
+pair,
+
+pair_playable_balls:
+pairBalls,
+
+striker_id:
+striker,
+
+non_striker_id:
+runner,
+
+current_bowler_id:
+bowler,
+
+status
+
+})
+.eq(
+"match_id",
+matchId
+);
+
+if(e2)
+throw e2;
+
+
+if(
+type==="COACH_THROW"||
+type==="WIDE"||
+type==="NO_BALL"
+){
+
+pendingUnplayable=null;
+
+}
+
+
+await load();
+
+
+if(
+status==="PAIR_COMPLETE"||
+status==="INNINGS_COMPLETE"
+){
+
+openPairChoice();
+
+}
+
+
+}catch(e){
+
+alert(e.message);
+
+}
+
+}
+
+
+/* NORMAL RUN BUTTONS */
+
+document
+.querySelectorAll("[data-run]")
+.forEach(
+b=>
+b.onclick=
+()=>
+record(
+"NORMAL",
++b.dataset.run
+)
+);
+
+
+/* WIDE */
+
+$("#wide").onclick=
+()=>{
+
+pendingUnplayable=
+"WIDE";
+
+$("#coachHelp")
+.textContent=
+"WIDE aangeteken. Dit tel as onspeelbaar. Kies nou die vervangende Coach Throw.";
+
+$("#coachModal")
+.classList
+.remove("hidden");
+
+};
+
+
+/* NO BALL */
+
+$("#nb").onclick=
+()=>{
+
+pendingUnplayable=
+"NO_BALL";
+
+$("#coachHelp")
+.textContent=
+"NO-BALL aangeteken. Dit tel as onspeelbaar. Kies nou die vervangende Coach Throw.";
+
+$("#coachModal")
+.classList
+.remove("hidden");
+
+};
+
+
+/* COACH THROW */
+
+document
+.querySelectorAll("[data-ct]")
+.forEach(
+b=>
+
+b.onclick=
+()=>{
+
+$("#coachModal")
+.classList
+.add("hidden");
+
+record(
+"COACH_THROW",
++b.dataset.ct,
+{
+previousUnplayable:
+pendingUnplayable
+}
+);
+
+}
+);
+
+
+/* COACH THROW WICKET */
+
+$("#ctWicket").onclick=
+()=>{
+
+$("#coachModal")
+.classList
+.add("hidden");
+
+$("#wicketModal")
+.classList
+.remove("hidden");
+
+};
+
+
+/* DISMISSAL */
+
+$("#dismissal").onchange=
+async()=>{
+
+const d=
+$("#dismissal").value;
+
+
+if(
+d==="CATCH"||
+d==="RUN_OUT"
+){
+
+const field=
+activeTeamPlayers(
+fieldingTeamId()
+);
+
+
+$("#fielder").innerHTML=
+
+field.map(
+p=>
+`<option value="${p.id}">
+${p.first_name} ${p.surname}
+</option>`
+).join("");
+
+
+$("#fielder")
+.classList
+.remove("hidden");
+
+}
+
+else{
+
+$("#fielder")
+.classList
+.add("hidden");
+
+}
+
+};
+
+
+/* CONFIRM WICKET */
+
+$("#confirmWicket")
+.onclick=
+async()=>{
+
+const d=
+$("#dismissal").value;
+
+
+if(!d){
+
+alert(
+"Kies dismissal."
+);
+
+return;
+
+}
+
+
+const f=
+(
+d==="CATCH"||
+d==="RUN_OUT"
+)
+? $("#fielder").value
+: null;
+
+
+$("#wicketModal")
+.classList
+.add("hidden");
+
+
+await record(
+"COACH_THROW",
+0,
+{
+previousUnplayable:
+pendingUnplayable,
+
+dismissal_type:
+d,
+
+fielder_id:
+f
+
+}
+);
+
+
+pendingUnplayable=null;
+
+};
+
+
+/* CANCEL WICKET */
+
+$("#cancelWicket")
+.onclick=
+()=>$("#wicketModal")
+.classList
+.add("hidden");
+
+
+/* NEXT PAIR */
 
 async function openPairChoice(){
- const bat=players.filter(p=>p.team_id===innings.batting_team_id&&p.active);
- const current=[live.striker_id,live.non_striker_id].filter(Boolean);
- const available=bat.filter(p=>!current.includes(p.id));
- $("#pairHelp").textContent="Die volgende paar moet twee spelers hê. As daar ’n ongelyke aantal spelers is, kies hier die terugkerende speler plus die nuwe speler.";
- $("#pairChoices").innerHTML=`<label>Nuwe speler</label><select id="newP">${available.map(p=>`<option value="${p.id}">${p.first_name} ${p.surname}</option>`).join("")}</select><br><br><label>Terugkerende speler</label><select id="returnP">${bat.map(p=>`<option value="${p.id}">${p.first_name} ${p.surname}</option>`).join("")}</select>`;
- $("#pairModal").classList.remove("hidden");
+
+const bat=
+players.filter(
+p=>
+p.team_id===
+innings.batting_team_id
+&&
+p.active
+);
+
+
+const current=[
+live.striker_id,
+live.non_striker_id
+].filter(Boolean);
+
+
+const available=
+bat.filter(
+p=>
+!current.includes(p.id)
+);
+
+
+$("#pairHelp")
+.textContent=
+"Die volgende paar moet twee spelers hê. As daar ’n ongelyke aantal spelers is, kies hier die terugkerende speler plus die nuwe speler.";
+
+
+$("#pairChoices")
+.innerHTML=
+
+`
+<label>Nuwe speler</label>
+
+<select id="newP">
+
+${available.map(
+p=>
+`<option value="${p.id}">
+${p.first_name} ${p.surname}
+</option>`
+).join("")}
+
+</select>
+
+<br><br>
+
+<label>Terugkerende speler</label>
+
+<select id="returnP">
+
+${bat.map(
+p=>
+`<option value="${p.id}">
+${p.first_name} ${p.surname}
+</option>`
+).join("")}
+
+</select>
+`;
+
+
+$("#pairModal")
+.classList
+.remove("hidden");
+
 }
-$("#confirmPair").onclick=async()=>{
- const newP=$("#newP").value,returnP=$("#returnP").value;if(!newP||!returnP||newP===returnP)return alert("Kies twee verskillende spelers.");
- const {data:pair,error}=await db.from("pairs").insert({innings_id:innings.id,pair_no:live.pair_no,batter_a_id:newP,batter_b_id:returnP,returning_player_id:returnP,selected_by_coach:true}).select().single();if(error)throw alert(error.message);
- const {error:e}=await db.from("live_match_state").update({striker_id:newP,non_striker_id:returnP,pair_playable_balls:0,status:"LIVE"}).eq("match_id",matchId);if(e)alert(e.message);else{$("#pairModal").classList.add("hidden");await load()}
+
+
+/* CONFIRM NEXT PAIR */
+
+$("#confirmPair")
+.onclick=
+async()=>{
+
+const newP=
+$("#newP").value;
+
+const returnP=
+$("#returnP").value;
+
+
+if(
+!newP||
+!returnP||
+newP===returnP
+){
+
+alert(
+"Kies twee verskillende spelers."
+);
+
+return;
+
+}
+
+
+const {
+data:pair,
+error
+}=await db
+.from("pairs")
+.insert({
+
+innings_id:
+innings.id,
+
+pair_no:
+live.pair_no,
+
+batter_a_id:
+newP,
+
+batter_b_id:
+returnP,
+
+returning_player_id:
+returnP,
+
+selected_by_coach:
+true
+
+})
+.select()
+.single();
+
+
+if(error){
+
+alert(error.message);
+
+return;
+
+}
+
+
+const {
+error:e
+}=await db
+.from("live_match_state")
+.update({
+
+striker_id:
+newP,
+
+non_striker_id:
+returnP,
+
+pair_playable_balls:
+0,
+
+status:
+"LIVE"
+
+})
+.eq(
+"match_id",
+matchId
+);
+
+
+if(e){
+
+alert(e.message);
+
+}else{
+
+$("#pairModal")
+.classList
+.add("hidden");
+
+await load();
+
+}
+
 };
+
+
+/* RENDER BOWLING STATS */
+
 async function renderStats(){
- const ev=await db.from("ball_events").select("*").eq("innings_id",innings.id);
- const events=ev.data||[];
- const b=players.filter(p=>p.team_id===innings.fielding_team_id);
- $("#bowlerStats").textContent=`Bouler: ${pname(live.current_bowler_id)} • R ${events.filter(e=>e.bowler_id===live.current_bowler_id).reduce((a,e)=>a+((e.event_type==="COACH_THROW")?0:e.runs),0)} • Wides ${events.filter(e=>e.bowler_id===live.current_bowler_id&&e.event_type==="WIDE").length} • NB ${events.filter(e=>e.bowler_id===live.current_bowler_id&&e.event_type==="NO_BALL").length} • Dots ${events.filter(e=>e.bowler_id===live.current_bowler_id&&e.playable_ball&&e.runs===0).length} • Wickets ${events.filter(e=>e.bowler_id===live.current_bowler_id&&(e.dismissal_type==="BOWLED"||e.dismissal_type==="CATCH")).length}`;
- const bowlers=b.map(p=>{const x=events.filter(e=>e.bowler_id===p.id);return {name:p.first_name+" "+p.surname,r:x.reduce((a,e)=>a+e.runs,0),wd:x.filter(e=>e.event_type==="WIDE").length,nb:x.filter(e=>e.event_type==="NO_BALL").length,d:x.filter(e=>e.playable_ball&&e.runs===0).length,w:x.filter(e=>e.dismissal_type==="BOWLED"||e.dismissal_type==="CATCH").length}});
- $("#bowlerTable").innerHTML=`<table><tr><th>Bouler</th><th>R</th><th>WD</th><th>NB</th><th>Dots</th><th>W</th></tr>${bowlers.map(x=>`<tr><td>${x.name}</td><td>${x.r}</td><td>${x.wd}</td><td>${x.nb}</td><td>${x.d}</td><td>${x.w}</td></tr>`).join("")}</table>`;
+
+const ev=
+await db
+.from("ball_events")
+.select("*")
+.eq(
+"innings_id",
+innings.id
+);
+
+
+const events=
+ev.data||[];
+
+
+const b=
+activeTeamPlayers(
+fieldingTeamId()
+);
+
+
+const currentBowlerEvents=
+events.filter(
+e=>
+e.bowler_id===
+live.current_bowler_id
+);
+
+
+$("#bowlerStats")
+.textContent=
+
+`Bouler: ${pname(live.current_bowler_id)} • R ${
+currentBowlerEvents.reduce(
+(a,e)=>
+a+
+(
+e.event_type==="COACH_THROW"
+?0
+:e.runs
+),
+0
+)
+} • Wides ${
+currentBowlerEvents.filter(
+e=>
+e.event_type==="WIDE"
+).length
+} • NB ${
+currentBowlerEvents.filter(
+e=>
+e.event_type==="NO_BALL"
+).length
+} • Dots ${
+currentBowlerEvents.filter(
+e=>
+e.playable_ball&&
+e.runs===0
+).length
+} • Wickets ${
+currentBowlerEvents.filter(
+e=>
+e.dismissal_type==="BOWLED"||
+e.dismissal_type==="CATCH"
+).length
+}`;
+
+
+const bowlers=
+b.map(
+p=>{
+
+const x=
+events.filter(
+e=>
+e.bowler_id===p.id
+);
+
+
+return{
+
+name:
+p.first_name+" "+p.surname,
+
+r:
+x.reduce(
+(a,e)=>
+a+e.runs,
+0
+),
+
+wd:
+x.filter(
+e=>
+e.event_type==="WIDE"
+).length,
+
+nb:
+x.filter(
+e=>
+e.event_type==="NO_BALL"
+).length,
+
+d:
+x.filter(
+e=>
+e.playable_ball&&
+e.runs===0
+).length,
+
+w:
+x.filter(
+e=>
+e.dismissal_type==="BOWLED"||
+e.dismissal_type==="CATCH"
+).length
+
+};
+
 }
-$("#back").onclick=()=>location.href="index.html";
-load().catch(e=>alert(e.message));
-</script></body></html>
+);
+
+
+$("#bowlerTable")
+.innerHTML=
+
+`
+<table>
+
+<tr>
+<th>Bouler</th>
+<th>R</th>
+<th>WD</th>
+<th>NB</th>
+<th>Dots</th>
+<th>W</th>
+</tr>
+
+${bowlers.map(
+x=>
+`
+<tr>
+
+<td>${x.name}</td>
+
+<td>${x.r}</td>
+
+<td>${x.wd}</td>
+
+<td>${x.nb}</td>
+
+<td>${x.d}</td>
+
+<td>${x.w}</td>
+
+</tr>
+`
+).join("")}
+
+</table>
+`;
+
+}
+
+
+/* BACK BUTTON */
+
+$("#back")
+.onclick=
+()=>{
+
+if(
+history.length>1
+){
+
+history.back();
+
+}else{
+
+location.href=
+"index.html";
+
+}
+
+};
+
+
+/* START */
+
+load()
+.catch(
+e=>
+alert(e.message)
+);
+
+</script>
+
+</body>
+</html>
