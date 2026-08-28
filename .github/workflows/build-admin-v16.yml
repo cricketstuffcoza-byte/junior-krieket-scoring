@@ -1,0 +1,52 @@
+name: Build Admin V16
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [portal-v10]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build V16 from working V12 base
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          src=Path('admin.html').read_text()
+          # admin.html is the proven V12 login base. Create an isolated V16 copy.
+          s=src.replace('Junior Krieket – Admin Portaal','Junior Krieket – Admin Portaal V16')
+          s=s.replace('LOGIN V12','ADMIN V16')
+          s=s.replace('<button type="button" data-tab="people">🧑‍🏫 Toegang</button>','<button type="button" data-tab="people">🧑‍🏫 Afrigters & Toegang</button><button type="button" data-tab="venues">📍 Venues</button><button type="button" data-tab="approvals">👨‍👩‍👧 Goedkeurings</button>')
+          # Replace player/team sections with richer versions while retaining existing IDs and data loading.
+          team_extra='''<div class="card"><h2>⚠️ Gevorderde spanbestuur</h2><p class="muted">Wysig, aktiveer/deaktiveer en verwyder spanne. Verwydering word slegs toegelaat wanneer daar geen afhanklike rekords is nie.</p><div id="teamAdminMsg" class="small"></div></div>'''
+          s=s.replace('</section>\n<section id="players"', team_extra+'</section>\n<section id="players"',1)
+          # Add management UI sections before the closing app div.
+          marker='</div></div>\n<div id="denied"'
+          # actual source has denied before app, so use a stable marker before closing body script.
+          insert='''\n<section id="venues" class="hidden"><div class="card"><h2>📍 Venue Bestuur</h2><div class="grid"><div><label>Venue naam</label><input id="venueName" placeholder="bv. Laerskool Wonderboom"></div></div><div class="actions"><button type="button" class="primary" id="addVenue">Voeg Venue By</button></div><p id="venueMsg" class="small"></p></div><div class="card"><div id="venueTable"></div></div></section>\n<section id="approvals" class="hidden"><div class="card"><h2>👨‍👩‍👧 Ouer-goedkeurings</h2><p class="muted">Nuwe ouerrekeninge word eers hier nagegaan. Admin kies die bestaande spelerprofiel voordat toegang gegee word.</p><div id="approvalTable"></div></div></section>\n'''
+          # inject before final app closing marker
+          idx=s.rfind('</div></div>\n<div id="modal"')
+          if idx<0: idx=s.rfind('</div></div>\n<script>')
+          if idx>=0: s=s[:idx]+insert+s[idx:]
+          # Add client-side enhancements immediately before closing script.
+          enhancement=r'''\n// V16 enhancements\nlet venues=[], approvals=[];\nasync function loadV16(){\n  const [v,a]=await Promise.all([db.from('venues').select('*').order('name'),db.from('parent_approval_requests').select('*').order('created_at',{ascending:false})]);\n  if(!v.error) venues=v.data||[]; if(!a.error) approvals=a.data||[];\n  renderV16();\n}\nfunction renderV16(){\n  const vt=el('venueTable'); if(vt) vt.innerHTML='<table><thead><tr><th>Venue</th><th>Status</th><th>Aksies</th></tr></thead><tbody>'+venues.map(v=>`<tr><td>${esc(v.name)}</td><td>${v.active===false?'Onaktief':'Aktief'}</td><td><button class="ghost mini" onclick="toggleVenue('${v.id}')">${v.active===false?'Aktiveer':'Deaktiveer'}</button> <button class="danger mini" onclick="deleteVenue('${v.id}')">Delete</button></td></tr>`).join('')+'</tbody></table>';\n  const at=el('approvalTable'); if(at) at.innerHTML=approvals.filter(a=>a.status==='pending').map(a=>`<div class="card"><b>${esc(a.requested_child_name)}</b><div class="muted">${esc(a.requested_email||'')} • ${esc(a.relationship||'')}</div><div class="actions"><select id="match-${a.id}">${players.map(p=>`<option value="${p.id}">${esc(p.first_name+' '+p.surname)} — ${esc(teamName(p.team_id))}</option>`).join('')}</select><button class="primary" onclick="approveParent('${a.id}')">Koppel & Goedkeur</button><button class="danger" onclick="rejectParent('${a.id}')">Weier</button></div></div>`).join('')||'<p class="muted">Geen pending ouer-goedkeurings nie.</p>';\n}\nasync function addVenue(){const name=el('venueName').value.trim();if(!name)return msg('venueMsg','Vul ’n venue naam in.','error');const {error}=await db.from('venues').insert({name,active:true});if(error)return msg('venueMsg',error.message,'error');el('venueName').value='';msg('venueMsg','Venue bygevoeg.','success');await loadV16()}\nasync function toggleVenue(id){const v=venues.find(x=>x.id===id);if(!v)return;const {error}=await db.from('venues').update({active:!v.active}).eq('id',id);if(error)return alert(error.message);await loadV16()}\nasync function deleteVenue(id){if(!confirm('Verwyder hierdie venue?'))return;const {error}=await db.from('venues').delete().eq('id',id);if(error)return alert('Kan nie verwyder nie: '+error.message);await loadV16()}\nasync function approveParent(id){const player_id=el('match-'+id)?.value;if(!player_id)return;const r=approvals.find(x=>x.id===id);const {error}=await db.from('guardian_players').upsert({guardian_user_id:r.guardian_user_id,player_id,relationship:r.relationship||'Ouer'},{onConflict:'guardian_user_id,player_id'});if(error)return alert(error.message);const {error:e}=await db.from('parent_approval_requests').update({status:'approved',matched_player_id:player_id,reviewed_by:currentUser?.id,reviewed_at:new Date().toISOString()}).eq('id',id);if(e)return alert(e.message);await loadV16()}\nasync function rejectParent(id){if(!confirm('Weier hierdie ouer-versoek?'))return;const {error}=await db.from('parent_approval_requests').update({status:'rejected',reviewed_by:currentUser?.id,reviewed_at:new Date().toISOString()}).eq('id',id);if(error)return alert(error.message);await loadV16()}\n// Safe delete helpers: database foreign keys decide whether historical data makes a hard delete safe.\nasync function deleteTeam(id){if(!confirm('Permanente delete van hierdie span? Dit kan nie ongedaan gemaak word nie.'))return;const {error}=await db.from('teams').delete().eq('id',id);if(error){alert('Die span kan nie veilig verwyder word nie. Gebruik Deaktiveer vir historiese spanne.');return}await loadAll()}\nasync function deletePlayer(id){if(!confirm('Permanente delete van hierdie speler?'))return;const {error}=await db.from('players').delete().eq('id',id);if(error){alert('Die speler kan nie veilig verwyder word nie. Gebruik Onaktief vir historiese spelers.');return}await loadAll()}\n'''
+          pos=s.rfind('</script>')
+          s=s[:pos]+enhancement+s[pos:]
+          # Ensure V16 enhancements load after successful admin login.
+          s=s.replace('await loadAll();return true','await loadAll();await loadV16();return true')
+          # Add venue select support if fixture venue is an input.
+          s=s.replace('<input id="fixtureVenue" value="Laerskool Wonderboom">','<select id="fixtureVenue"><option value="Laerskool Wonderboom">Laerskool Wonderboom</option></select>')
+          Path('admin-v16.html').write_text(s)
+          PY
+      - name: Commit V16
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add admin-v16.html .github/workflows/build-admin-v16.yml
+          git diff --cached --quiet || git commit -m "Build Admin V16 from working login base"
+          git push
