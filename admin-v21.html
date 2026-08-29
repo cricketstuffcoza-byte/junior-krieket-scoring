@@ -1,45 +1,154 @@
-<!doctype html><html lang="af"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Junior Krieket – Admin Portaal V21</title><style>body{font-family:system-ui,sans-serif;background:#eef2f6;color:#172033;margin:0}.loading{max-width:700px;margin:15vh auto;background:#fff;border-radius:18px;padding:28px;box-shadow:0 3px 16px #0001}.error{color:#b42318}.v21coach{grid-column:1/-1}.v21coach label{display:block;font-weight:700;margin-bottom:6px}.v21coach select{width:100%;box-sizing:border-box}.v21note{margin-top:7px}</style></head><body><div class="loading" id="loading"><h1>🔐 Admin Portaal V21</h1><p>Laai die volledige Admin-portaal…</p></div><script>(async()=>{try{const res=await fetch('admin-v20.html?v21=20260829',{cache:'no-store'});if(!res.ok)throw new Error('Kon die basis Admin-portaal nie laai nie.');const html=await res.text();const doc=new DOMParser().parseFromString(html,'text/html');doc.title='Junior Krieket – Admin Portaal V21';const patch=doc.createElement('script');patch.textContent=String.raw`(function(){
-const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-const q=s=>document.querySelector(s);
-const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-function findSupabase(){
-  for(const k of Object.keys(window)){try{const v=window[k];if(v&&typeof v.from==='function'&&v.auth)return v}catch(e){}}
-  try{if(window.supabase&&typeof window.supabase.createClient==='function'){const scripts=[...document.scripts].map(s=>s.textContent||'').join('\n');const u=(scripts.match(/https:\\/\\/[^'"\\s]+\\.supabase\\.co/)||[])[0];const jwt=(scripts.match(/eyJ[A-Za-z0-9_-]{80,}/)||[])[0];if(u&&jwt)return window.supabase.createClient(u,jwt)}}catch(e){}
-  return null;
-}
-function getRestConfig(){
- const scripts=[...document.scripts].map(s=>s.textContent||'').join('\n');
- const m=scripts.match(/https:\\/\\/([a-z0-9-]+)\\.supabase\\.co/); const jwt=scripts.match(/eyJ[A-Za-z0-9_-]{80,}/); if(!m||!jwt)return null;
- let token=null; for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);try{const v=JSON.parse(localStorage.getItem(k));if(v&&v.access_token){token=v.access_token;break}}catch(e){}}
- return {url:'https://'+m[1]+'.supabase.co',key:jwt[0],token};
-}
-async function api(table,method='GET',query='',body){const c=getRestConfig();if(!c||!c.token)throw new Error('Admin-aanmelding is nie beskikbaar nie. Meld asseblief weer aan.');const h={'apikey':c.key,'Authorization':'Bearer '+c.token,'Content-Type':'application/json','Prefer':method==='POST'?'return=representation':'return=minimal'};const r=await fetch(c.url+'/rest/v1/'+table+query,{method,headers:h,body:body?JSON.stringify(body):undefined});const text=await r.text();let data=null;try{data=text?JSON.parse(text):null}catch(e){data=text}if(!r.ok)throw new Error(data?.message||data?.hint||data?.details||data?.error_description||String(data));return data}
-function notice(t,c='info'){let e=q('#v21CreateMsg')||q('#v20Msg');if(!e){e=document.createElement('p');e.id='v21CreateMsg';e.className='small';const b=q('#v20Create');b?.parentElement?.appendChild(e)}e.textContent=t;e.className='small '+c}
-async function loadCoaches(select){const rows=await api('user_profiles', 'GET','?select=user_id,full_name,active,role&role=eq.coach&active=eq.true&order=full_name');select.innerHTML='<option value="">— Kies afrigter —</option>'+(rows||[]).map(c=>'<option value="'+esc(c.user_id)+'">'+esc(c.full_name||'Afrigter')+'</option>').join('');return rows||[]}
-async function verifyCoach(coach,teamA,teamB){const rows=await api('coach_teams','GET','?select=team_id&coach_user_id=eq.'+encodeURIComponent(coach)+'&active=eq.true');const allowed=new Set((rows||[]).map(x=>x.team_id));if(!allowed.has(teamA)&&!allowed.has(teamB))throw new Error('Die gekose afrigter is nie aan Span A of Span B toegewys nie.');}
-async function install(){
- const button=q('#v20Create'),grid=button?.closest('.card')?.querySelector('.grid3');if(!button||!grid)return false;
- let wrap=q('#v21CoachWrap');if(!wrap){wrap=document.createElement('div');wrap.className='v21coach';wrap.id='v21CoachWrap';wrap.innerHTML='<label for="v21Coach">Afrigter vir hierdie wedstryd</label><select id="v21Coach"><option value="">— Laai afrigters… —</option></select><p class="small muted v21note">Die afrigter moet reeds aan Span A of Span B toegewys wees.</p>';grid.appendChild(wrap)}
- const select=q('#v21Coach');try{await loadCoaches(select)}catch(e){notice('Kon afrigters nie laai nie: '+e.message,'error')}
- const fresh=button.cloneNode(true);button.replaceWith(fresh);fresh.id='v20Create';
- fresh.addEventListener('click',async e=>{
-   e.preventDefault();e.stopPropagation();
-   const age=q('#v20Age')?.value,a=q('#v20A')?.value,b=q('#v20B')?.value,d=q('#v20Date')?.value,t=q('#v20Time')?.value,v=q('#v20Venue')?.value,c=select.value;
-   if(!c)return notice('Kies asseblief ’n afrigter vir hierdie wedstryd.','error');if(!a||!b||a===b)return notice('Kies twee verskillende spanne.','error');if(!d||!t)return notice('Kies asseblief datum en tyd.','error');if(!v)return notice('Kies asseblief ’n venue.','error');
-   try{
-     await verifyCoach(c,a,b);
-     const venueName=q('#v20Venue')?.selectedOptions?.[0]?.textContent?.trim()||'';
-     const fixture='JK-'+d.replaceAll('-','')+'-'+Math.random().toString(36).slice(2,7).toUpperCase();
-     const row={fixture_code:fixture,age_group:age,team_a_id:a,team_b_id:b,match_date:d,match_time:t.length===5?t+':00':t,venue:venueName,status:'SCHEDULED',coach_user_id:c};
-     await api('matches','POST','',row);
-     notice('Wedstryd en afrigter suksesvol geskep.','success');
-     ['v20A','v20B','v20Date','v20Time'].forEach(id=>{const x=q('#'+id);if(x)x.value=''});select.value='';
-     const refresh=q('#v20MatchRefresh');if(refresh)refresh.click();
-   }catch(err){notice('Kon wedstryd nie skep nie: '+err.message,'error')}
- });
- return true;
-}
-async function boot(){for(let i=0;i<30;i++){if(await install())return;await sleep(250)}throw new Error('Kon nie die V21 wedstrydskepping laai nie.');}
-boot().catch(e=>console.error(e));
-})();`;
-doc.body.appendChild(patch);document.open();document.write('<!doctype html>'+doc.documentElement.outerHTML);document.close()}catch(e){document.getElementById('loading').innerHTML='<h1>Admin V21</h1><p class="error">'+String(e.message||e)+'</p>'}})();</script></body></html>
+<!doctype html>
+<html lang="af">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Junior Krieket – Admin Portaal V21</title>
+<style>
+html,body{margin:0;width:100%;height:100%;background:#eef2f6}
+#v21Frame{display:block;width:100%;height:100%;min-height:100vh;border:0}
+#v21Loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#eef2f6;font-family:system-ui,sans-serif;color:#172033;z-index:10}
+#v21Loading .box{background:#fff;border-radius:18px;padding:28px;box-shadow:0 3px 16px #0001;max-width:700px;margin:20px}
+#v21Loading .error{color:#b42318}
+</style>
+</head>
+<body>
+<div id="v21Loading"><div class="box"><h1>🔐 Admin Portaal V21</h1><p>Laai die volledige Admin-portaal…</p></div></div>
+<iframe id="v21Frame" title="Junior Krieket Admin Portaal V21" src="admin-v17.html"></iframe>
+<script>
+(function(){
+  const frame=document.getElementById('v21Frame');
+  const loading=document.getElementById('v21Loading');
+  let patched=false;
+
+  function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+
+  async function patchV21(){
+    if(patched)return;
+    const w=frame.contentWindow;
+    const d=frame.contentDocument;
+    if(!w||!d)return;
+
+    // The old V21 implementation used DOMParser/document.write to chain V20 → V19 → V17.
+    // That made the nested inline scripts inert, so the login button had no handler.
+    // V21 now runs the proven V17 application normally in an iframe and patches it after load.
+    patched=true;
+
+    const style=d.createElement('style');
+    style.textContent=`
+      .v21coach{grid-column:1/-1}
+      .v21coach label{display:block;font-weight:700;margin-bottom:6px}
+      .v21coach select{width:100%;box-sizing:border-box}
+      .v21note{margin-top:7px}
+    `;
+    d.head.appendChild(style);
+
+    const badge=d.querySelector('#auth .pill');
+    if(badge)badge.textContent='ADMIN V21';
+    const title=d.querySelector('#app h1');
+    if(title)title.textContent='🔐 Admin Portaal V21';
+    try{d.title='Junior Krieket – Admin Portaal V21'}catch(e){}
+
+    const matches=d.getElementById('matches');
+    const grid=matches?.querySelector('.grid3');
+    const button=d.getElementById('createMatch');
+    if(!grid||!button)return;
+
+    let wrap=d.getElementById('v21CoachWrap');
+    if(!wrap){
+      wrap=d.createElement('div');
+      wrap.className='v21coach';
+      wrap.id='v21CoachWrap';
+      wrap.innerHTML='<label for="v21Coach">Afrigter vir hierdie wedstryd</label><select id="v21Coach"><option value="">— Laai afrigters… —</option></select><p class="small muted v21note">Die afrigter moet reeds aan Span A of Span B toegewys wees.</p>';
+      grid.appendChild(wrap);
+    }
+
+    const select=d.getElementById('v21Coach');
+    try{
+      const {data,error}=await w.db.from('user_profiles')
+        .select('user_id,full_name,active,role')
+        .eq('role','coach')
+        .eq('active',true)
+        .order('full_name');
+      if(error)throw error;
+      select.innerHTML='<option value="">— Kies afrigter —</option>'+((data||[]).map(c=>'<option value="'+esc(c.user_id)+'">'+esc(c.full_name||'Afrigter')+'</option>').join(''));
+    }catch(e){
+      select.innerHTML='<option value="">— Kon afrigters nie laai nie —</option>';
+      const msg=d.getElementById('matchMsg');
+      if(msg){msg.textContent='Kon afrigters nie laai nie: '+(e.message||e);msg.className='small error'}
+    }
+
+    const fresh=button.cloneNode(true);
+    button.replaceWith(fresh);
+    fresh.addEventListener('click',async function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      const age=d.getElementById('matchAge')?.value;
+      const a=d.getElementById('matchA')?.value;
+      const b=d.getElementById('matchB')?.value;
+      const date=d.getElementById('matchDate')?.value;
+      const time=d.getElementById('matchTime')?.value;
+      const venue=d.getElementById('matchVenue')?.value;
+      const coach=select.value;
+      const notice=d.getElementById('matchMsg');
+      const setMsg=(text,cls)=>{if(notice){notice.textContent=text;notice.className='small '+(cls||'')}};
+
+      if(!coach)return setMsg('Kies asseblief ’n afrigter vir hierdie wedstryd.','error');
+      if(!a||!b||a===b)return setMsg('Kies twee verskillende spanne.','error');
+      if(!date||!time)return setMsg('Kies asseblief datum en tyd.','error');
+      if(!venue)return setMsg('Kies asseblief ’n venue.','error');
+
+      fresh.disabled=true;
+      fresh.textContent='Skep wedstryd…';
+      try{
+        const {data:assignments,error:assignError}=await w.db.from('coach_teams')
+          .select('team_id')
+          .eq('coach_user_id',coach)
+          .eq('active',true);
+        if(assignError)throw assignError;
+        const allowed=new Set((assignments||[]).map(x=>String(x.team_id)));
+        if(!allowed.has(String(a))&&!allowed.has(String(b))){
+          throw new Error('Die gekose afrigter is nie aan Span A of Span B toegewys nie.');
+        }
+
+        const venueName=d.getElementById('matchVenue')?.selectedOptions?.[0]?.textContent?.trim()||'';
+        const fixture='JK-'+String(date).replaceAll('-','')+'-'+Math.random().toString(36).slice(2,7).toUpperCase();
+        const matchTime=String(time).length===5?String(time)+':00':time;
+        const {error}=await w.db.from('matches').insert({
+          fixture_code:fixture,
+          age_group:age,
+          team_a_id:a,
+          team_b_id:b,
+          match_date:date,
+          match_time:matchTime,
+          venue:venueName,
+          status:'SCHEDULED',
+          coach_user_id:coach
+        });
+        if(error)throw error;
+
+        setMsg('Wedstryd en afrigter suksesvol geskep.','success');
+        ['matchA','matchB','matchDate','matchTime'].forEach(id=>{const x=d.getElementById(id);if(x)x.value=''});
+        select.value='';
+        if(typeof w.loadCore==='function')await w.loadCore();
+        else if(typeof w.render==='function')w.render();
+      }catch(err){
+        setMsg('Kon wedstryd nie skep nie: '+(err.message||err),'error');
+      }finally{
+        fresh.disabled=false;
+        fresh.textContent='Skep Wedstryd';
+      }
+    });
+  }
+
+  frame.addEventListener('load',async function(){
+    loading.style.display='none';
+    try{await patchV21()}catch(e){
+      loading.style.display='flex';
+      loading.querySelector('.box').innerHTML='<h1>Admin V21</h1><p class="error">Kon V21 nie voltooi laai nie: '+String(e.message||e)+'</p>';
+    }
+  });
+})();
+</script>
+</body>
+</html>
