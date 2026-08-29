@@ -20,7 +20,7 @@
 const SUPABASE_URL='https://moomommajyldjquncnrd.supabase.co';
 const SUPABASE_KEY='sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH';
 const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY),$=id=>document.getElementById(id);
-const O6_SCORER='https://junior-krieket-scoring-2me96aei7-wolwe.vercel.app/Telkaart-O6-ALPHA-OMEGA-V16.html';
+const O6_SCORER='./scorer-phase1.html';
 let session=null,profile=null;
 const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 function msg(t,c=''){ $('authMsg').textContent=t;$('authMsg').className='small '+c }
