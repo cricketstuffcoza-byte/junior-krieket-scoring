@@ -1,34 +1,59 @@
 <!doctype html>
 <html lang="af">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Junior Krieket – Telkaart V5</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Junior Krieket – Alpha & Omega Telkaart</title>
 <style>
-body{margin:0;background:#eef2f6;font-family:system-ui,sans-serif;color:#172033}.bar{max-width:1100px;margin:0 auto;padding:12px 18px}.card{background:#fff;border-radius:16px;padding:14px 18px;margin:10px 0;box-shadow:0 2px 12px #0001}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.pill{padding:5px 10px;border-radius:999px;background:#edf2f7;font-size:12px;font-weight:800}.muted{color:#667085}.error{color:#b42318}.scoreframe{width:100%;height:calc(100vh - 150px);min-height:760px;border:0;border-radius:16px;background:#fff}.hidden{display:none!important}select,button{font:inherit}select{width:100%;padding:11px;border:1px solid #d9dee3;border-radius:10px;background:#fff}.actions{display:flex;gap:10px;flex-wrap:wrap}.primary{background:#172033;color:#fff;border:0;border-radius:10px;padding:12px 16px;font-weight:800;cursor:pointer}.primary:disabled{opacity:.45;cursor:not-allowed}.success{background:#eef7ee;border:1px solid #b8d3aa}.warn{background:#fff4e5;border:1px solid #e6c59e}.closed{background:#eaf4ff;border:1px solid #9fc5e8}.status{padding:11px 13px;border-radius:11px;font-weight:800;margin-top:10px}
+body{margin:0;background:#eef2f6;font-family:system-ui,sans-serif;color:#172033}.bar{max-width:1100px;margin:0 auto;padding:12px 18px}.card{background:#fff;border-radius:16px;padding:14px 18px;margin:10px 0;box-shadow:0 2px 12px #0001}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.muted{color:#667085}.error{color:#b42318;background:#fff3f2}.hidden{display:none!important}.scoreframe{width:100%;height:calc(100vh - 90px);min-height:900px;border:0;border-radius:16px;background:#fff}
 </style>
 </head>
 <body>
 <div class="bar">
-<div class="card"><div class="top"><div><h2>🏏 Telkaart</h2><div id="fixture" class="muted">Laai wedstryd…</div><div id="scorer" class="muted"></div></div><span class="pill">Telling gehou deur afrigter</span></div></div>
-<div id="error" class="card error hidden"></div>
-<iframe id="frame" class="scoreframe hidden" title="Junior Krieket telkaart"></iframe>
-<div id="finalCard" class="card hidden"><div class="top"><div><h3 style="margin:0">🏆 Wedstryd voltooi</h3><div class="muted" style="margin-top:4px">Kies die Speler van die Wedstryd en sluit daarna die telkaart.</div></div><span id="closedBadge" class="pill hidden">Telkaart gesluit</span></div><div style="margin-top:12px"><label for="playerOfMatch"><b>Speler van die Wedstryd</b></label><select id="playerOfMatch"><option value="">Kies speler…</option></select></div><div id="closeStatus" class="status hidden"></div><div class="actions" style="margin-top:12px"><button id="closeScorecard" class="primary" disabled>🔒 Sluit telkaart</button></div></div>
+  <div id="error" class="card error hidden"></div>
+  <iframe id="frame" class="scoreframe hidden" title="Junior Krieket Alpha & Omega telkaart"></iframe>
 </div>
 <script>
 'use strict';
-const SUPABASE_URL='https://moomommajyldjquncnrd.supabase.co',SUPABASE_KEY='sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH';
+const SUPABASE_URL='https://moomommajyldjquncnrd.supabase.co';
+const SUPABASE_KEY='sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH';
+const ALPHA_URL='https://raw.githubusercontent.com/cricketstuffcoza-byte/junior-krieket-scoring/o6-alpha-omega/Telkaart-O6-ALPHA-OMEGA-V16.html';
+const db=window.supabase?.createClient?.(SUPABASE_URL,SUPABASE_KEY);
+const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-let db=null,matchId=null,currentUser=null,match=null;const $=id=>document.getElementById(id);
-async function loadPlayers(){const sel=$("playerOfMatch");sel.innerHTML='<option value="">Kies speler…</option>';const {data,error}=await db.from('match_players').select('player_id,team_id,players(id,first_name,surname)').eq('match_id',matchId);if(error)throw error;(data||[]).forEach(r=>{const p=r.players;if(!p)return;const o=document.createElement('option');o.value=p.id;o.textContent=[p.first_name,p.surname].filter(Boolean).join(' ');sel.appendChild(o)});sel.disabled=sel.options.length<=1;$("closeScorecard").disabled=!sel.value}
-async function refreshMatch(){const {data,error}=await db.from('matches').select('id,fixture_code,team_a_id,team_b_id,match_date,match_time,venue,coach_user_id,scorer_user_id,status,completed_at,player_of_match_id,scorecard_closed_at,scorecard_closed_by_user_id').eq('id',matchId).maybeSingle();if(error)throw error;if(!data)throw Error('Die wedstryd kon nie gevind word nie. ID: '+matchId);match=data;const teamIds=[data.team_a_id,data.team_b_id].filter(Boolean);const {data:teams,error:teamError}=await db.from('teams').select('id,name').in('id',teamIds);if(teamError)throw teamError;const teamMap=Object.fromEntries((teams||[]).map(t=>[t.id,t.name]));const teamA=teamMap[data.team_a_id]||'Onbekende span',teamB=teamMap[data.team_b_id]||'Onbekende span';let coachId=data.coach_user_id||data.scorer_user_id,name='Onbekend';if(coachId){const {data:p}=await db.from('user_profiles').select('full_name').eq('user_id',coachId).maybeSingle();if(p?.full_name)name=p.full_name}$('fixture').innerHTML=`<b>${esc(teamA)} vs ${esc(teamB)}</b> • ${esc(data.match_date)} • ${String(data.match_time||'').slice(0,5)} • ${esc(data.venue||'')}`;$('scorer').innerHTML=`<b>Telling gehou deur:</b> ${esc(name)}`;if(data.scorecard_closed_at){$('finalCard').classList.remove('hidden');$('closedBadge').classList.remove('hidden');$('closeScorecard').disabled=true;$('playerOfMatch').disabled=true;const {data:pp}=await db.from('players').select('first_name,surname').eq('id',data.player_of_match_id).maybeSingle();if(pp)$('playerOfMatch').innerHTML=`<option>${esc([pp.first_name,pp.surname].filter(Boolean).join(' '))}</option>`;$('closeStatus').textContent='Die telkaart is reeds gesluit.';$('closeStatus').className='status closed';$('closeStatus').classList.remove('hidden');return}if(data.status==='COMPLETED'){await loadPlayers();$('finalCard').classList.remove('hidden');$('closeStatus').textContent='Wedstryd is voltooi. Kies nou die Speler van die Wedstryd en sluit die telkaart.';$('closeStatus').className='status success';$('closeStatus').classList.remove('hidden')}else{$('finalCard').classList.add('hidden')}}
-async function closeScorecard(){const playerId=$("playerOfMatch").value;if(!playerId){$("closeStatus").textContent='Kies asseblief eers die Speler van die Wedstryd.';$("closeStatus").className='status warn';$("closeStatus").classList.remove('hidden');return}if(!match||match.status!=='COMPLETED')return;const btn=$("closeScorecard");btn.disabled=true;$("closeStatus").textContent='Sluit telkaart…';$("closeStatus").className='status';$("closeStatus").classList.remove('hidden');const {error}=await db.from('matches').update({player_of_match_id:playerId,scorecard_closed_at:new Date().toISOString(),scorecard_closed_by_user_id:currentUser.id}).eq('id',matchId);if(error){btn.disabled=false;throw error}$('playerOfMatch').disabled=true;$('closedBadge').classList.remove('hidden');$('closeStatus').textContent='✅ Telkaart is suksesvol gesluit en die Speler van die Wedstryd is aangeteken.';$('closeStatus').className='status closed';await refreshMatch()}
-function guardEndMatch(f){
-  const enforce=()=>{try{const d=f.contentDocument;if(!d)return;const modal=d.getElementById('endModal');const final=d.getElementById('finalPanel');const done=!!(final&&!final.classList.contains('hidden'));if(modal&&!done)modal.classList.add('hidden');if(modal&&done)modal.classList.remove('hidden')}catch(_){}};
-  f.addEventListener('load',()=>{enforce();try{const d=f.contentDocument;if(!d)return;const root=d.documentElement;new MutationObserver(enforce).observe(root,{subtree:true,childList:true,attributes:true,attributeFilter:['class','style']});setInterval(enforce,250)}catch(_){}});
+function fail(e){const x=$("error");x.textContent=e?.message||String(e)||'Kon Alpha & Omega telkaart nie laai nie.';x.classList.remove('hidden')}
+async function init(){
+  if(!db)throw Error('Die Supabase-aanmeldingsdiens kon nie laai nie.');
+  const matchId=new URLSearchParams(location.search).get('match');
+  if(!matchId)throw Error('Geen wedstryd-ID ontvang nie.');
+  const {data:match,error:matchError}=await db.from('matches').select('id,fixture_code,team_a_id,team_b_id,match_date,match_time,venue,age_group').eq('id',matchId).maybeSingle();
+  if(matchError)throw matchError;if(!match)throw Error('Die wedstryd kon nie gevind word nie.');
+  const ids=[match.team_a_id,match.team_b_id].filter(Boolean);
+  const {data:teams,error:teamError}=await db.from('teams').select('id,name').in('id',ids);
+  if(teamError)throw teamError;
+  const teamMap=Object.fromEntries((teams||[]).map(t=>[t.id,t.name]));
+  const teamA=teamMap[match.team_a_id]||'Span A',teamB=teamMap[match.team_b_id]||'Span B';
+  const {data:mp,error:mpError}=await db.from('match_players').select('player_id,team_id,players(first_name,surname)').eq('match_id',matchId);
+  if(mpError)throw mpError;
+  const players={};
+  players[teamA]=(mp||[]).filter(x=>x.team_id===match.team_a_id&&x.players).map(x=>[x.players.first_name,x.players.surname].filter(Boolean).join(' '));
+  players[teamB]=(mp||[]).filter(x=>x.team_id===match.team_b_id&&x.players).map(x=>[x.players.first_name,x.players.surname].filter(Boolean).join(' '));
+  if(players[teamA].length<2||players[teamB].length<2)throw Error('Die wedstryd se spelers kon nie volledig gelaai word nie.');
+  const age=String(match.age_group||'U/6').toUpperCase().replace('O/','U/');
+  const safeMatch={teamA,teamB,group:age,date:match.match_date||'',time:String(match.match_time||'').slice(0,5),venue:match.venue||''};
+  const response=await fetch(ALPHA_URL,{cache:'no-store'});if(!response.ok)throw Error('Die bewaarde Alpha & Omega telkaart kon nie gelaai word nie ('+response.status+').');
+  let html=await response.text();
+  html=html.replace(/const MATCH=\{[^;]*\};/,`const MATCH=${JSON.stringify(safeMatch)};`);
+  html=html.replace(/const PLAYERS=\{[\s\S]*?\n\};/,`const PLAYERS=${JSON.stringify(players)};`);
+  html=html.replace('Plaaslike toetsweergawe • wedstrydinstellings is deur Admin vooraf bepaal','Alpha & Omega telkaart • wedstrydinstellings is deur Admin vooraf bepaal');
+  html=html.replace(/31 Augustus 2026/g,esc(new Date((match.match_date||'')+'T12:00:00').toLocaleDateString('af-ZA',{day:'numeric',month:'long',year:'numeric'})));
+  html=html.replace(/17:30/g,esc(String(match.match_time||'').slice(0,5)));
+  html=html.replace(/Laerskool Wonderboom/g,esc(match.venue||''));
+  const f=$("frame");
+  const blob=new Blob([html],{type:'text/html'});f.src=URL.createObjectURL(blob);f.classList.remove('hidden');
 }
-async function init(){if(!window.supabase?.createClient)throw Error('Die Supabase-aanmeldingsdiens kon nie laai nie.');db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);matchId=new URLSearchParams(location.search).get('match');if(!matchId)throw Error('Geen wedstryd-ID ontvang nie.');const {data:{user},error:authError}=await db.auth.getUser();if(authError)throw authError;if(!user)throw Error('Geen geldige afrigter-aanmelding gevind nie.');currentUser=user;await refreshMatch();const f=$("frame");guardEndMatch(f);f.src=`scorer.html?match=${encodeURIComponent(matchId)}`;f.classList.remove('hidden');$('playerOfMatch').addEventListener('change',()=>{$('closeScorecard').disabled=!$('playerOfMatch').value});$('closeScorecard').addEventListener('click',()=>closeScorecard().catch(e=>{$('closeStatus').textContent=e.message||'Kon nie die telkaart sluit nie.';$('closeStatus').className='status warn';$('closeStatus').classList.remove('hidden');$('closeScorecard').disabled=false}));setInterval(()=>refreshMatch().catch(()=>{}),5000)}
-init().catch(e=>{const x=$("error");x.textContent=e.message||'Kon nie wedstryd laai nie.';x.classList.remove('hidden')});
+init().catch(fail);
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </body>
 </html>
