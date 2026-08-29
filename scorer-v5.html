@@ -4,8 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Junior Krieket – Alpha & Omega Telkaart</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-body{margin:0;background:#eef2f6;font-family:system-ui,sans-serif;color:#172033}.bar{max-width:1100px;margin:0 auto;padding:12px 18px}.card{background:#fff;border-radius:16px;padding:14px 18px;margin:10px 0;box-shadow:0 2px 12px #0001}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.muted{color:#667085}.error{color:#b42318;background:#fff3f2}.hidden{display:none!important}.scoreframe{width:100%;height:calc(100vh - 90px);min-height:900px;border:0;border-radius:16px;background:#fff}
+body{margin:0;background:#eef2f6;font-family:system-ui,sans-serif;color:#172033}.bar{max-width:1100px;margin:0 auto;padding:12px 18px}.card{background:#fff;border-radius:16px;padding:14px 18px;margin:10px 0;box-shadow:0 2px 12px #0001}.muted{color:#667085}.error{color:#b42318;background:#fff3f2}.hidden{display:none!important}.scoreframe{width:100%;height:calc(100vh - 90px);min-height:900px;border:0;border-radius:16px;background:#fff}
 </style>
 </head>
 <body>
@@ -18,12 +19,10 @@ body{margin:0;background:#eef2f6;font-family:system-ui,sans-serif;color:#172033}
 const SUPABASE_URL='https://moomommajyldjquncnrd.supabase.co';
 const SUPABASE_KEY='sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH';
 const ALPHA_URL='https://raw.githubusercontent.com/cricketstuffcoza-byte/junior-krieket-scoring/o6-alpha-omega/Telkaart-O6-ALPHA-OMEGA-V16.html';
-const db=window.supabase?.createClient?.(SUPABASE_URL,SUPABASE_KEY);
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=id=>document.getElementById(id);
-const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 function fail(e){const x=$("error");x.textContent=e?.message||String(e)||'Kon Alpha & Omega telkaart nie laai nie.';x.classList.remove('hidden')}
 async function init(){
-  if(!db)throw Error('Die Supabase-aanmeldingsdiens kon nie laai nie.');
   const matchId=new URLSearchParams(location.search).get('match');
   if(!matchId)throw Error('Geen wedstryd-ID ontvang nie.');
   const {data:match,error:matchError}=await db.from('matches').select('id,fixture_code,team_a_id,team_b_id,match_date,match_time,venue,age_group').eq('id',matchId).maybeSingle();
@@ -46,14 +45,11 @@ async function init(){
   html=html.replace(/const MATCH=\{[^;]*\};/,`const MATCH=${JSON.stringify(safeMatch)};`);
   html=html.replace(/const PLAYERS=\{[\s\S]*?\n\};/,`const PLAYERS=${JSON.stringify(players)};`);
   html=html.replace('Plaaslike toetsweergawe • wedstrydinstellings is deur Admin vooraf bepaal','Alpha & Omega telkaart • wedstrydinstellings is deur Admin vooraf bepaal');
-  html=html.replace(/31 Augustus 2026/g,esc(new Date((match.match_date||'')+'T12:00:00').toLocaleDateString('af-ZA',{day:'numeric',month:'long',year:'numeric'})));
-  html=html.replace(/17:30/g,esc(String(match.match_time||'').slice(0,5)));
-  html=html.replace(/Laerskool Wonderboom/g,esc(match.venue||''));
   const f=$("frame");
-  const blob=new Blob([html],{type:'text/html'});f.src=URL.createObjectURL(blob);f.classList.remove('hidden');
+  f.src=URL.createObjectURL(new Blob([html],{type:'text/html'}));
+  f.classList.remove('hidden');
 }
 init().catch(fail);
 </script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </body>
 </html>
