@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="af">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Junior Krieket – Admin Portaal V19</title>
+<style>body{font-family:system-ui,sans-serif;background:#eef2f6;color:#172033;margin:0}.loading{max-width:700px;margin:15vh auto;background:#fff;border-radius:18px;padding:28px;box-shadow:0 3px 16px #0001}.error{color:#b42318}</style>
+</head>
+<body>
+<div class="loading" id="loading"><h1>🔐 Admin Portaal V19</h1><p>Laai die volledige Admin-portaal…</p></div>
+<script>
+(async()=>{
+  try{
+    const res=await fetch('admin-v17.html',{cache:'no-store'});
+    if(!res.ok) throw new Error('Kon die bestaande Admin-portaal nie laai nie.');
+    const html=await res.text();
+    const doc=new DOMParser().parseFromString(html,'text/html');
+    doc.title='Junior Krieket – Admin Portaal V19';
+
+    const coachCard=[...doc.querySelectorAll('#coaches .grid')][0];
+    if(coachCard){
+      const oldName=coachCard.querySelector('#coachName');
+      if(oldName){
+        const wrap=oldName.closest('div');
+        wrap.innerHTML='<label>Voornaam</label><input id="coachFirst" autocomplete="given-name">';
+        const surname=document.createElement('div');
+        surname.innerHTML='<label>Van</label><input id="coachSurname" autocomplete="family-name">';
+        coachCard.insertBefore(surname,wrap.nextSibling);
+      }
+    }
+
+    const patch=doc.createElement('script');
+    patch.textContent=`
+      (function(){
+        const badge=document.querySelector('#auth .pill'); if(badge) badge.textContent='ADMIN V19';
+        const h=document.querySelector('#app h1'); if(h) h.textContent='🔐 Admin Portaal V19';
+        const btn=document.getElementById('addCoach');
+        if(btn){
+          btn.onclick=async function(){
+            try{
+              const first=document.getElementById('coachFirst').value.trim();
+              const surname=document.getElementById('coachSurname').value.trim();
+              const email=document.getElementById('coachEmail').value.trim();
+              const password=document.getElementById('coachPassword').value;
+              const selected=[...document.querySelectorAll('#coachTeams input[type=checkbox]:checked')].map(x=>x.value);
+              if(!first||!surname) throw new Error('Vul asseblief die afrigter se voornaam en van in.');
+              if(!email) throw new Error('Vul asseblief die e-posadres in.');
+              if(password.length<6) throw new Error('Die wagwoord moet minstens 6 karakters wees.');
+              msg('coachMsg','Skep afrigter…');
+              const {data,error}=await db.functions.invoke('admin-create-coach',{body:{first_name:first,surname,email,password,team_ids:selected}});
+              if(error) throw error;
+              if(data?.error) throw new Error(data.error);
+              document.getElementById('coachFirst').value='';
+              document.getElementById('coachSurname').value='';
+              document.getElementById('coachEmail').value='';
+              document.getElementById('coachPassword').value='';
+              document.querySelectorAll('#coachTeams input[type=checkbox]').forEach(x=>x.checked=false);
+              msg('coachMsg','Afrigter suksesvol bygevoeg.','success');
+              if(typeof loadCoaches==='function') await loadCoaches();
+            }catch(e){
+              const raw=e?.context?.body?.error_description||e?.context?.body?.message||e?.message||'Kon nie afrigter skep nie.';
+              const friendly=/already registered|already exists|duplicate/i.test(String(raw))?'Hierdie e-posadres is reeds geregistreer. Gebruik ’n ander e-posadres.':raw;
+              msg('coachMsg',friendly,'error');
+            }
+          };
+        }
+
+        async function loadParentApprovals(){
+          const box=document.getElementById('parentTable'); if(!box) return;
+          box.innerHTML='<div class="status info">Laai goedkeurings…</div>';
+          try{
+            const [{data:reqs,error:rerr},{data:ps,error:perr}]=await Promise.all([
+              db.from('parent_approval_requests').select('*').order('created_at',{ascending:false}),
+              db.from('players').select('id,first_name,surname,team_id,active').order('surname').order('first_name')
+            ]);
+            if(rerr) throw rerr; if(perr) throw perr;
+            const activePlayers=(ps||[]).filter(p=>p.active!==false);
+            if(!(reqs||[]).length){ box.innerHTML='<p class="muted">Geen ouer-goedkeurings wag tans nie.</p>'; return; }
+            const teamMap=new Map((typeof teams!=='undefined'?teams:[]).map(t=>[t.id,t]));
+            const options=(selected='')=>'<option value="">— Kies werklike speler —</option>'+activePlayers.map(p=>{const t=teamMap.get(p.team_id); const label=(p.first_name+' '+p.surname)+(t?' ('+t.name+' · '+t.age_group+')':''); return '<option value="'+esc(p.id)+'" '+(selected===p.id?'selected':'')+'>'+esc(label)+'</option>';}).join('');
+            const rows=(reqs||[]).map(r=>{
+              const status=r.status||'pending';
+              const created=r.created_at?new Date(r.created_at).toLocaleString('en-ZA'):'—';
+              if(status!=='pending') return '<tr><td>'+esc(r.requested_child_name)+'</td><td>'+esc(r.requested_email||'—')+'</td><td>'+esc(r.relationship||'—')+'</td><td>'+esc(status)+'</td><td>'+created+'</td><td>'+(r.matched_player_id?'<span class="success">Gekoppel</span>':'—')+'</td></tr>';
+              return '<tr><td><strong>'+esc(r.requested_child_name)+'</strong></td><td>'+esc(r.requested_email||'—')+'</td><td><input id="rel_'+r.id+'" placeholder="bv. Ma / Pa / Voog"></td><td><select id="player_'+r.id+'">'+options(r.matched_player_id||'')+'</select></td><td>'+created+'</td><td class="rowactions"><button class="good mini" data-approve="'+r.id+'">Koppel & keur goed</button> <button class="danger mini" data-reject="'+r.id+'">Verwerp</button></td></tr>';
+            }).join('');
+            box.innerHTML='<div class="status info"><strong>Ouerrekening-goedkeuring:</strong> Kies die werklike bestaande spelerprofiel voordat jy goedkeur. Een ouer kan later verskeie kinders hê.</div><div class="tablewrap"><table><tr><th>Kind soos ingelees</th><th>Ouer e-pos</th><th>Verhouding</th><th>Werklike speler</th><th>Aansoek</th><th>Aksie/status</th></tr>'+rows+'</table></div>';
+            box.querySelectorAll('[data-approve]').forEach(b=>b.onclick=()=>approveParent(b.dataset.approve));
+            box.querySelectorAll('[data-reject]').forEach(b=>b.onclick=()=>rejectParent(b.dataset.reject));
+          }catch(e){ box.innerHTML='<div class="status error">Kon goedkeurings nie laai nie: '+esc(e?.message||e)+'</div>'; }
+        }
+        async function approveParent(id){
+          const player=document.getElementById('player_'+id)?.value; const rel=document.getElementById('rel_'+id)?.value.trim()||null;
+          if(!player){alert('Kies asseblief eers die werklike spelerprofiel.');return;}
+          if(!confirm('Koppel hierdie ouer aan die gekose speler en keur die rekening goed?')) return;
+          const {data,error}=await db.rpc('admin_approve_parent_request',{p_request_id:id,p_player_id:player,p_relationship:rel});
+          if(error){alert(error.message||'Kon nie goedkeur nie.');return;}
+          if(data?.error){alert(data.error);return;}
+          await loadParentApprovals();
+        }
+        async function rejectParent(id){
+          if(!confirm('Verwerp hierdie ouer-goedkeuringsversoek?')) return;
+          const {data,error}=await db.rpc('admin_reject_parent_request',{p_request_id:id});
+          if(error){alert(error.message||'Kon nie verwerp nie.');return;}
+          if(data?.error){alert(data.error);return;}
+          await loadParentApprovals();
+        }
+        const parentTab=document.querySelector('#tabs button[data-tab="parents"]');
+        if(parentTab) parentTab.addEventListener('click',()=>setTimeout(loadParentApprovals,0));
+        const oldDashboard=window.dashboard; if(typeof oldDashboard==='function') window.dashboard=async()=>{await oldDashboard();};
+        window.loadParentApprovals=loadParentApprovals;
+      })();
+    `;
+    doc.body.appendChild(patch);
+    document.open();
+    document.write('<!doctype html>'+doc.documentElement.outerHTML);
+    document.close();
+  }catch(e){
+    document.getElementById('loading').innerHTML='<h1>Admin V19</h1><p class="error">'+String(e.message||e)+'</p>';
+  }
+})();
+</script>
+</body>
+</html>
