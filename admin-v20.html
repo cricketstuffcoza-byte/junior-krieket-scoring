@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="af">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Junior Krieket – Admin Portaal V20</title>
+<style>body{font-family:system-ui,sans-serif;background:#eef2f6;color:#172033;margin:0}.loading{max-width:700px;margin:15vh auto;background:#fff;border-radius:18px;padding:28px;box-shadow:0 3px 16px #0001}.error{color:#b42318}</style></head>
+<body><div class="loading" id="loading"><h1>🔐 Admin Portaal V20</h1><p>Laai die volledige Admin-portaal…</p></div>
+<script>
+(async()=>{
+try{
+ const res=await fetch('admin-v19.html',{cache:'no-store'}); if(!res.ok) throw new Error('Kon Admin V19 nie laai nie.');
+ const html=await res.text(); const doc=new DOMParser().parseFromString(html,'text/html'); doc.title='Junior Krieket – Admin Portaal V20';
+ const patch=doc.createElement('script'); patch.textContent=`
+(function(){
+ const badge=document.querySelector('#auth .pill'); if(badge) badge.textContent='ADMIN V20';
+ const title=document.querySelector('#app h1'); if(title) title.textContent='🔐 Admin Portaal V20';
+ const sec=document.getElementById('matches'); if(!sec) return;
+ sec.innerHTML=\
+ '<div class="card"><div class="top"><div><h2>📅 Wedstryde & Fixtures</h2><p class="muted">Skep, wysig en bestuur wedstryde. Die bestaande telkaart-data word nie deur Admin verander nie.</p></div><button class="ghost" id="v20MatchRefresh">↻ Verfris</button></div>'+
+ '<div class="grid3"><div><label>Ouderdomsgroep</label><select id="v20Age"><option>U/6</option><option>U/7</option><option>U/8</option></select></div><div><label>Span A</label><select id="v20A"></select></div><div><label>Span B</label><select id="v20B"></select></div><div><label>Datum</label><input id="v20Date" type="date"></div><div><label>Tyd</label><input id="v20Time" type="time"></div><div><label>Venue</label><select id="v20Venue"></select></div></div>'+
+ '<div class="actions"><button class="primary" id="v20Create">Skep Wedstryd</button></div><p id="v20Msg" class="small"></p></div>'+
+ '<div class="card"><div class="top"><div><h2>Wedstrydlys</h2><p class="muted">Gebruik die filters om toekomstige, LIVE, voltooide en uitgestelde/afgestelde wedstryde te bestuur.</p></div><div class="actions"><select id="v20Filter"><option value="ALL">Alles</option><option value="SCHEDULED">Geskeduleer</option><option value="LIVE">LIVE</option><option value="COMPLETED">Voltooi</option><option value="SPECIAL">Uitgestel / Afgestel</option></select></div></div><div id="v20Table"></div></div>';
+ let v20Teams=[],v20Venues=[];
+ const q=s=>document.querySelector(s); const esc2=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+ function notice(t,c){const e=q('#v20Msg');if(e){e.textContent=t;e.className='small '+(c||'info')}}
+ async function loadRefs(){
+   const [tr,vr]=await Promise.all([db.from('teams').select('id,name,age_group,active').order('age_group').order('name'),db.from('venues').select('id,name,active').order('name')]);
+   if(tr.error) throw tr.error;if(vr.error) throw vr.error; v20Teams=tr.data||[];v20Venues=vr.data||[];
+   const age=q('#v20Age').value; fill(q('#v20A'),v20Teams.filter(x=>x.active!==false&&x.age_group===age)); fill(q('#v20B'),v20Teams.filter(x=>x.active!==false&&x.age_group===age)); fill(q('#v20Venue'),v20Venues.filter(x=>x.active!==false));
+ }
+ function fill(el,arr){el.innerHTML='<option value="">— Kies —</option>'+arr.map(x=>'<option value="'+esc2(x.id)+'">'+esc2(x.name)+'</option>').join('')}
+ async function createFixture(){
+   const age=q('#v20Age').value,a=q('#v20A').value,b=q('#v20B').value,d=q('#v20Date').value,t=q('#v20Time').value,v=q('#v20Venue').value;
+   if(!a||!b||a===b)return notice('Kies twee verskillende spanne.','error'); if(!d||!t)return notice('Kies asseblief datum en tyd.','error'); if(!v)return notice('Kies asseblief ’n venue.','error');
+   const venueName=v20Venues.find(x=>x.id===v)?.name||'';
+   const dup=await db.from('matches').select('id').eq('match_date',d).eq('match_time',t).or('and(team_a_id.eq.'+a+',team_b_id.eq.'+b+'),and(team_a_id.eq.'+b+',team_b_id.eq.'+a+')').limit(1);
+   if(dup.error)return notice(dup.error.message,'error'); if((dup.data||[]).length)return notice('Daar bestaan reeds ’n wedstryd tussen hierdie twee spanne op dieselfde datum en tyd.','error');
+   const fixture='JK-'+d.replaceAll('-','')+'-'+Math.random().toString(36).slice(2,7).toUpperCase();
+   const {error}=await db.from('matches').insert({fixture_code:fixture,age_group:age,team_a_id:a,team_b_id:b,match_date:d,match_time:t,venue:venueName,status:'SCHEDULED'});
+   if(error)return notice(error.message,'error'); notice('Wedstryd suksesvol geskep.','success'); ['v20A','v20B','v20Date','v20Time'].forEach(id=>q('#'+id).value=''); await loadMatches();
+ }
+ function teamName(id){return v20Teams.find(x=>x.id===id)?.name||'—'}
+ function resultLabel(m){if(m.result_type==='POSTPONED')return 'Uitgestel';if(m.result_type==='CANCELLED_WEATHER')return 'Afgestel – Weer';if(m.result_type==='CANCELLED_NO_SHOW')return 'Afgestel – Span daag nie op';if(m.result_type==='CANCELLED_MANAGEMENT')return 'Afgestel – Bestuur';return m.status||'—'}
+ function optionsStatus(m){return ['SCHEDULED','LIVE','COMPLETED'].map(s=>'<option value="'+s+'" '+(m.status===s?'selected':'')+'>'+s+'</option>').join('')}
+ async function loadMatches(){
+   const {data,error}=await db.from('matches').select('*').order('match_date',{ascending:true}).order('match_time',{ascending:true}); if(error){q('#v20Table').innerHTML='<div class="status error">Kon wedstryde nie laai nie: '+esc2(error.message)+'</div>';return}
+   const filter=q('#v20Filter').value; const rows=(data||[]).filter(m=>filter==='ALL'||(filter==='SPECIAL'?['POSTPONED','CANCELLED_WEATHER','CANCELLED_NO_SHOW','CANCELLED_MANAGEMENT'].includes(m.result_type):m.status===filter)).map(m=>{
+     const special=['POSTPONED','CANCELLED_WEATHER','CANCELLED_NO_SHOW','CANCELLED_MANAGEMENT'].includes(m.result_type); const reason=m.result_reason||'';
+     return '<tr><td><strong>'+esc2(m.fixture_code||m.id.slice(0,8))+'</strong><br><span class="small">'+esc2(m.age_group)+'</span></td><td>'+esc2(teamName(m.team_a_id))+'<br><span class="muted">vs</span><br>'+esc2(teamName(m.team_b_id))+'</td><td>'+esc2(m.match_date)+'<br>'+esc2(String(m.match_time||'').slice(0,5))+'</td><td>'+esc2(m.venue||'—')+'</td><td><select id="st_'+m.id+'">'+optionsStatus(m)+'</select><div class="small">'+esc2(resultLabel(m))+'</div></td><td><button class="ghost mini" data-edit="'+m.id+'">Wysig</button> <button class="primary mini" data-status="'+m.id+'">Stoor status</button><br><button class="danger mini" data-special="'+m.id+'">Uitgestel/Afstel</button> '+(special?'<div class="small">'+esc2(reason)+'</div>':'')+'</td></tr>';
+   }).join('');
+   q('#v20Table').innerHTML='<div class="tablewrap"><table><tr><th>Fixture</th><th>Spanne</th><th>Datum/Tyd</th><th>Venue</th><th>Status</th><th>Aksies</th></tr>'+(rows||'<tr><td colspan="6">Geen wedstryde vir hierdie filter.</td></tr>')+'</table></div>';
+   q('#v20Table').querySelectorAll('[data-status]').forEach(b=>b.onclick=()=>saveStatus(b.dataset.status)); q('#v20Table').querySelectorAll('[data-special]').forEach(b=>b.onclick=()=>specialStatus(b.dataset.special)); q('#v20Table').querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editFixture(b.dataset.edit));
+ }
+ async function saveStatus(id){const status=q('#st_'+id).value; const {error}=await db.from('matches').update({status}).eq('id',id);if(error)return alert(error.message);await loadMatches()}
+ async function specialStatus(id){
+   const type=prompt('Kies status: POSTPONED = Uitgestel | CANCELLED_WEATHER = Weer | CANCELLED_NO_SHOW = Span daag nie op | CANCELLED_MANAGEMENT = Bestuur'); if(!type||!['POSTPONED','CANCELLED_WEATHER','CANCELLED_NO_SHOW','CANCELLED_MANAGEMENT'].includes(type.trim().toUpperCase()))return alert('Ongeldige keuse.');
+   const reason=prompt('Opsionele rede / nota:')||null; const {error}=await db.from('matches').update({result_type:type.trim().toUpperCase(),result_reason:reason,status:'SCHEDULED'}).eq('id',id); if(error)return alert(error.message); await loadMatches();
+ }
+ async function editFixture(id){
+   const {data:m,error}=await db.from('matches').select('*').eq('id',id).single(); if(error)return alert(error.message);
+   const d=prompt('Datum (YYYY-MM-DD):',m.match_date);if(d===null)return;const t=prompt('Tyd (HH:MM):',String(m.match_time||'').slice(0,5));if(t===null)return;const v=prompt('Venue:',m.venue||'');if(v===null)return;
+   const {error:e}=await db.from('matches').update({match_date:d,match_time:t+':00',venue:v}).eq('id',id);if(e)return alert(e.message);await loadMatches();
+ }
+ q('#v20Age').onchange=loadRefs; q('#v20Create').onclick=createFixture; q('#v20MatchRefresh').onclick=async()=>{await loadRefs();await loadMatches()}; q('#v20Filter').onchange=loadMatches;
+ const tab=document.querySelector('#tabs button[data-tab="matches"]'); if(tab)tab.addEventListener('click',()=>setTimeout(()=>{loadRefs().then(loadMatches).catch(e=>notice(e.message,'error'))},0));
+ loadRefs().catch(e=>notice(e.message,'error')); loadMatches();
+})();`;
+ doc.body.appendChild(patch); document.open();document.write('<!doctype html>'+doc.documentElement.outerHTML);document.close();
+}catch(e){document.getElementById('loading').innerHTML='<h1>Admin V20</h1><p class="error">'+String(e.message||e)+'</p>'}
+})();
+</script></body></html>
