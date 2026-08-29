@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="af">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Junior Krieket – Afrigter Portaal O/6</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#eef2f6}*{box-sizing:border-box}body{margin:0}.wrap{max-width:1100px;margin:auto;padding:18px}.card{background:#fff;border-radius:18px;padding:20px;margin:14px 0;box-shadow:0 3px 16px #0001}.top{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}h1,h2,h3{margin:0 0 8px}.muted{color:#667085}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}label{display:block;font-weight:800;margin-bottom:6px}input{width:100%;padding:12px;border:1px solid #ccd3dc;border-radius:10px;font-size:15px}button{border:0;border-radius:11px;padding:12px 16px;font-weight:800;cursor:pointer}.primary{background:#172033;color:#fff}.ghost{background:#eef2f6}.pill{display:inline-block;padding:5px 10px;border-radius:999px;background:#edf2f7;font-size:12px;font-weight:800}.small{font-size:13px}.success{color:#087443}.error{color:#b42318}.status{padding:14px;border-radius:12px;background:#f6f8fa}.fixture{border:1px solid #e4e7ec;border-radius:14px;padding:16px;margin:10px 0}.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}.hidden{display:none!important}.notice{padding:13px;border-radius:12px;background:#eaf4ff;border:1px solid #9fc5e8;font-weight:700}@media(max-width:800px){.grid,.grid3{grid-template-columns:1fr}}
+</style>
+</head>
+<body><div class="wrap">
+<section id="auth" class="card"><div class="top"><div><h1>🏏 Junior Krieket</h1><p class="muted">Afrigter Portaal • O/6</p></div><span class="pill">FASE 1</span></div><div class="grid"><div><label>E-pos</label><input id="email" type="email" autocomplete="username"></div><div><label>Wagwoord</label><input id="password" type="password" autocomplete="current-password"></div></div><div class="actions"><button id="login" class="primary">Meld Aan</button></div><p id="authMsg" class="small">Meld aan met die afrigter se bestaande rekening.</p></section>
+<section id="denied" class="card hidden"><h2>🔒 Geen toegang</h2><p id="deniedMsg"></p><button id="deniedLogout" class="ghost">Teken uit</button></section>
+<main id="app" class="hidden"><section class="card"><div class="top"><div><h1>🧑‍🏫 Afrigter Portaal</h1><p id="welcome" class="muted"></p></div><button id="logout" class="ghost">Teken uit</button></div></section>
+<section class="card"><h2>My spanne</h2><div id="teams" class="grid3"></div></section>
+<section class="card"><div class="top"><div><h2>📅 My toegewysde wedstryde</h2><p class="muted">Slegs wedstryde wat Admin direk aan hierdie afrigter toegeken het.</p></div><button id="refresh" class="ghost">Hernu</button></div><div id="fixtures"><p class="muted">Laai…</p></div></section>
+</main></div>
+<script>
+'use strict';
+const SUPABASE_URL='https://moomommajyldjquncnrd.supabase.co';
+const SUPABASE_KEY='sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH';
+const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY),$=id=>document.getElementById(id);
+const O6_SCORER='https://junior-krieket-scoring-2me96aei7-wolwe.vercel.app/Telkaart-O6-ALPHA-OMEGA-V16.html';
+let session=null,profile=null;
+const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+function msg(t,c=''){ $('authMsg').textContent=t;$('authMsg').className='small '+c }
+function showAuth(){ $('auth').classList.remove('hidden');$('app').classList.add('hidden');$('denied').classList.add('hidden') }
+function showDenied(t){ $('auth').classList.add('hidden');$('app').classList.add('hidden');$('denied').classList.remove('hidden');$('deniedMsg').textContent=t }
+async function verifyCoach(user){const {data:p,error}=await db.from('user_profiles').select('full_name,role,active').eq('user_id',user.id).maybeSingle();if(error)throw error;if(!p)throw Error('Jou gebruikersprofiel bestaan nog nie.');if(p.active===false)throw Error('Jou gebruikersprofiel is gedeaktiveer.');if(!['coach','afrigter'].includes(String(p.role).toLowerCase()))throw Error('Hierdie rekening is nie as ’n afrigter geregistreer nie.');return p}
+async function loadTeams(){const {data,error}=await db.from('coach_teams').select('team_id,active,teams(id,name,age_group,active)').eq('coach_user_id',session.user.id).eq('active',true);if(error)throw error;const teams=(data||[]).map(x=>x.teams).filter(Boolean).filter(t=>t.active!==false);$('teams').innerHTML=teams.length?teams.map(t=>`<div class="status"><h3>${esc(t.name)}</h3><span class="pill">${esc(t.age_group)}</span></div>`).join(''):'<p class="muted">Geen aktiewe spanne toegeken nie.</p>'}
+async function loadFixtures(){const {data,error}=await db.from('matches').select('id,age_group,team_a_id,team_b_id,match_date,match_time,venue,status').eq('coach_user_id',session.user.id).order('match_date',{ascending:false}).order('match_time',{ascending:false});if(error)throw error;const rows=data||[];if(!rows.length){$('fixtures').innerHTML='<div class="notice">Geen wedstryde is tans direk aan jou toegeken nie.</div>';return}const ids=[...new Set(rows.flatMap(m=>[m.team_a_id,m.team_b_id].filter(Boolean)))];const {data:teams,error:te}=await db.from('teams').select('id,name').in('id',ids);if(te)throw te;const map=new Map((teams||[]).map(t=>[t.id,t.name]));$('fixtures').innerHTML=rows.map(f=>{const a=map.get(f.team_a_id)||'Span A',b=map.get(f.team_b_id)||'Span B',status=String(f.status||'').toUpperCase();const playable=['SCHEDULED','LIVE'].includes(status);const available=f.age_group==='U/6'&&playable;return `<div class="fixture"><div class="top"><div><h3>${esc(a)} vs ${esc(b)}</h3><div class="muted">${esc(f.match_date)} • ${esc(String(f.match_time||'').slice(0,5))} • ${esc(f.venue||'')}</div></div><span class="pill">${esc(f.age_group)} · ${esc(f.status)}</span></div><div class="actions">${available?`<button class="primary" onclick="openMatch('${f.id}')">🏏 ${status==='LIVE'?'OPEN O/6 TELKAART':'BEGIN O/6 TELKAART'}</button>`:`<span class="muted small">${status==='COMPLETED'?'Wedstryd is reeds voltooi.':'Wedstryd is nie beskikbaar nie.'}</span>`}</div></div>`}).join('')}
+window.openMatch=id=>{location.href=`${O6_SCORER}?match=${encodeURIComponent(id)}`};
+async function start(user){try{session={user};profile=await verifyCoach(user);$('auth').classList.add('hidden');$('denied').classList.add('hidden');$('app').classList.remove('hidden');$('welcome').textContent=`Welkom, ${profile.full_name||user.email}`;await loadTeams();await loadFixtures()}catch(e){showDenied(e.message)}}
+async function boot(){const {data:{user},error}=await db.auth.getUser();if(error)throw error;if(user)await start(user);else showAuth();db.auth.onAuthStateChange(async(e,s)=>{if(s?.user)await start(s.user);else showAuth()})}
+$('login').onclick=async()=>{try{msg('Meld aan…');const {data,error}=await db.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error)throw error;if(data.user)await start(data.user)}catch(e){msg(e.message,'error')}};
+$('logout').onclick=()=>db.auth.signOut();$('deniedLogout').onclick=()=>db.auth.signOut();$('refresh').onclick=()=>loadFixtures().catch(e=>alert(e.message));boot().catch(e=>msg(e.message,'error'));
+</script></body></html>
