@@ -28,11 +28,15 @@ html,body{margin:0;width:100%;height:100%;background:#eef2f6}
     const w=frame.contentWindow;
     const d=frame.contentDocument;
     if(!w||!d)return;
-
-    // The old V21 implementation used DOMParser/document.write to chain V20 → V19 → V17.
-    // That made the nested inline scripts inert, so the login button had no handler.
-    // V21 now runs the proven V17 application normally in an iframe and patches it after load.
     patched=true;
+
+    // Create a real Supabase client in the iframe scope.
+    // The V17 page keeps its client in a top-level const, which is not exposed as window.db.
+    // V21 therefore must not use w.db; this client shares the same Supabase auth storage.
+    const SUPABASE_URL='https://moomommajyldjquncnrd.supabase.co';
+    const SUPABASE_KEY='sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH';
+    if(!w.supabase||typeof w.supabase.createClient!=='function')throw new Error('Supabase-biblioteek kon nie laai nie.');
+    const v21db=w.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
     const style=d.createElement('style');
     style.textContent=`
@@ -65,13 +69,15 @@ html,body{margin:0;width:100%;height:100%;background:#eef2f6}
 
     const select=d.getElementById('v21Coach');
     try{
-      const {data,error}=await w.db.from('user_profiles')
+      const {data,error}=await v21db.from('user_profiles')
         .select('user_id,full_name,active,role')
         .eq('role','coach')
         .eq('active',true)
         .order('full_name');
       if(error)throw error;
       select.innerHTML='<option value="">— Kies afrigter —</option>'+((data||[]).map(c=>'<option value="'+esc(c.user_id)+'">'+esc(c.full_name||'Afrigter')+'</option>').join(''));
+      const msg=d.getElementById('matchMsg');
+      if(msg){msg.textContent='';msg.className='small'}
     }catch(e){
       select.innerHTML='<option value="">— Kon afrigters nie laai nie —</option>';
       const msg=d.getElementById('matchMsg');
@@ -101,7 +107,7 @@ html,body{margin:0;width:100%;height:100%;background:#eef2f6}
       fresh.disabled=true;
       fresh.textContent='Skep wedstryd…';
       try{
-        const {data:assignments,error:assignError}=await w.db.from('coach_teams')
+        const {data:assignments,error:assignError}=await v21db.from('coach_teams')
           .select('team_id')
           .eq('coach_user_id',coach)
           .eq('active',true);
@@ -114,7 +120,7 @@ html,body{margin:0;width:100%;height:100%;background:#eef2f6}
         const venueName=d.getElementById('matchVenue')?.selectedOptions?.[0]?.textContent?.trim()||'';
         const fixture='JK-'+String(date).replaceAll('-','')+'-'+Math.random().toString(36).slice(2,7).toUpperCase();
         const matchTime=String(time).length===5?String(time)+':00':time;
-        const {error}=await w.db.from('matches').insert({
+        const {error}=await v21db.from('matches').insert({
           fixture_code:fixture,
           age_group:age,
           team_a_id:a,
