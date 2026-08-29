@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="af">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Junior Krieket – Fase 1 Telkaart</title>
+<style>body{margin:0;background:#eef2f6;font-family:system-ui,sans-serif;color:#172033}#boot{max-width:760px;margin:12vh auto;padding:24px;background:#fff;border-radius:18px;box-shadow:0 4px 24px #0001}#boot h1{margin-top:0}.err{color:#b42318}.ok{color:#087443}</style>
+</head>
+<body><div id="boot"><h1>🏏 Junior Krieket – Fase 1</h1><p id="msg">Laai wedstryd…</p></div>
+<script>
+'use strict';
+const SUPABASE_URL='https://moomommajyldjquncnrd.supabase.co';
+const SUPABASE_KEY='sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH';
+const MATCH_ID=new URLSearchParams(location.search).get('match');
+const msg=document.getElementById('msg');
+const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+function fail(e){msg.className='err';msg.textContent='Kon die wedstryd nie laai nie: '+(e?.message||String(e));}
+async function boot(){
+  if(!MATCH_ID) throw Error('Geen wedstryd-ID is verskaf nie. Maak die telkaart vanuit die Afrigter-portaal oop.');
+  const lib=document.createElement('script');lib.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+  await new Promise((resolve,reject)=>{lib.onload=resolve;lib.onerror=()=>reject(Error('Supabase-biblioteek kon nie laai nie.'));document.head.appendChild(lib)});
+  const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  const {data:{user},error:ue}=await db.auth.getUser();
+  if(ue)throw ue;if(!user)throw Error('Meld eers by die Afrigter-portaal aan.');
+  const {data:profile,error:pe}=await db.from('user_profiles').select('full_name,role,active').eq('user_id',user.id).maybeSingle();
+  if(pe)throw pe;if(!profile||profile.active===false||String(profile.role).toLowerCase()!=='coach')throw Error('Hierdie rekening het nie Afrigter-toegang nie.');
+  const {data:match,error:me}=await db.from('matches').select('id,fixture_code,age_group,team_a_id,team_b_id,match_date,match_time,venue,status,coach_user_id').eq('id',MATCH_ID).maybeSingle();
+  if(me)throw me;if(!match)throw Error('Wedstryd bestaan nie.');
+  if(match.coach_user_id!==user.id)throw Error('Hierdie wedstryd is nie aan jou toegeken nie.');
+  if(match.status==='COMPLETED')throw Error('Hierdie wedstryd is reeds voltooi.');
+  const teamIds=[match.team_a_id,match.team_b_id];
+  const [{data:teams,error:te},{data:players,error:ple}]=await Promise.all([
+    db.from('teams').select('id,name,age_group').in('id',teamIds),
+    db.from('players').select('id,first_name,surname,team_id,active').in('team_id',teamIds).eq('active',true).order('first_name').order('surname')
+  ]);
+  if(te)throw te;if(ple)throw ple;
+  const ta=teams.find(t=>t.id===match.team_a_id),tb=teams.find(t=>t.id===match.team_b_id);
+  if(!ta||!tb)throw Error('Een van die twee spanne kon nie gevind word nie.');
+  if(match.age_group!=='U/6')throw Error('Fase 1 gebruik tans die O/6 telkaart.');
+  const grouped={};grouped[ta.name]=(players||[]).filter(p=>p.team_id===ta.id).map(p=>(p.first_name+' '+p.surname).trim());grouped[tb.name]=(players||[]).filter(p=>p.team_id===tb.id).map(p=>(p.first_name+' '+p.surname).trim());
+  const source=await fetch('./scorer.html?phase1_source=1').then(r=>{if(!r.ok)throw Error('Die scoring engine kon nie gelaai word nie.');return r.text()});
+  let html=source;
+  html=html.replace(/const TEAM_A='[^']*',TEAM_B='[^']*';/,`const TEAM_A=${JSON.stringify(ta.name)},TEAM_B=${JSON.stringify(tb.name)};`);
+  html=html.replace(/const TEAMS=\{.*?\};const ageParam=/s,`const TEAMS=${JSON.stringify({[match.age_group]:grouped})};const ageParam=`);
+  html=html.replace(/matchId:'[^']*',matchDate:'[^']*',matchTime:'[^']*',venue:'[^']*',ageGroup:rule\.name,batTeam:bat,fieldTeam:field,teamA:TEAM_A,teamB:TEAM_B/,`matchId:${JSON.stringify(match.id)},matchDate:${JSON.stringify(match.match_date)},matchTime:${JSON.stringify(String(match.match_time||'').slice(0,5))},venue:${JSON.stringify(match.venue||'')},ageGroup:rule.name,batTeam:bat,fieldTeam:field,teamA:TEAM_A,teamB:TEAM_B`);
+  const bridge=`
+const PHASE1_MATCH_ID=${JSON.stringify(match.id)};
+const PHASE1_USER_ID=${JSON.stringify(user.id)};
+const PHASE1_TEAM_IDS=${JSON.stringify({[ta.name]:ta.id,[tb.name]:tb.id})};
+const PHASE1_PLAYER_IDS=${JSON.stringify(Object.fromEntries((players||[]).map(p=>[(p.first_name+' '+p.surname).trim(),p.id])))};
+const phase1db=supabase.createClient(${JSON.stringify(SUPABASE_URL)},${JSON.stringify(SUPABASE_KEY)});
+let phase1Saving=false,phase1Timer=null,phase1Loaded=false;
+function phase1Status(){if(!state)return 'READY';if(state.innings===2&&state.inningsComplete)return 'COMPLETED';if(state.innings===1&&state.inningsComplete&&state.waitingForSecondInnings)return 'INNINGS_BREAK';return 'LIVE'}
+function phase1Summary(n){return n?{innings:n.innings,batTeam:n.batTeam,fieldTeam:n.fieldTeam,runs:n.runs,wickets:n.wickets,playable:n.playable,unplayable:n.unplayable,coachThrows:n.coachThrows,completed:!!n.inningsComplete}:null}
+async function phase1Persist(force=false){
+ if(!state||phase1Saving)return;
+ if(!force){clearTimeout(phase1Timer);phase1Timer=setTimeout(()=>phase1Persist(true),250);return}
+ phase1Saving=true;
+ try{
+  const status=phase1Status();
+  const batId=PHASE1_TEAM_IDS[state.batTeam]||null,fieldId=PHASE1_TEAM_IDS[state.fieldTeam]||null;
+  const tossId=PHASE1_TEAM_IDS[state.tossWinner]||null;
+  const firstId=state.inningsData?.[0]?.batTeam?PHASE1_TEAM_IDS[state.inningsData[0].batTeam]:batId;
+  const secondId=state.inningsData?.[0]?.fieldTeam?PHASE1_TEAM_IDS[state.inningsData[0].fieldTeam]:fieldId;
+  await phase1db.from('matches').update({status,coach_user_id:PHASE1_USER_ID,scorer_user_id:PHASE1_USER_ID,toss_winner_team_id:tossId,toss_decision:state.tossDecision||null,first_batting_team_id:firstId,second_batting_team_id:secondId}).eq('id',PHASE1_MATCH_ID);
+  await phase1db.from('live_match_state').upsert({match_id:PHASE1_MATCH_ID,innings_no:state.innings||1,innings_runs:state.runs||0,innings_wickets:state.wickets||0,playable_balls:state.playable||0,unplayable_balls:state.unplayable||0,over_no:Math.floor((state.playable||0)/rule.overBalls)+1,over_playable_balls:(state.overBalls||0),pair_no:state.pair||1,pair_playable_balls:state.pairBalls||0,status,state_json:state,updated_by:PHASE1_USER_ID,updated_at:new Date().toISOString()},{onConflict:'match_id'});
+ }catch(e){console.error('Phase1 save failed',e)}finally{phase1Saving=false}
+}
+async function phase1EnsurePlayers(){
+ const rows=(players||[]).map(p=>({match_id:PHASE1_MATCH_ID,player_id:p.id,team_id:p.team_id}));
+ if(rows.length) await phase1db.from('match_players').upsert(rows,{onConflict:'match_id,player_id'});
+}
+async function phase1Restore(){
+ const {data,error}=await phase1db.from('live_match_state').select('state_json').eq('match_id',PHASE1_MATCH_ID).maybeSingle();
+ if(error)throw error;if(data?.state_json){state=data.state_json;history=[];pending=null;phase1Loaded=true;render();}
+}
+async function phase1Start(){
+ await phase1EnsurePlayers();
+ await phase1Persist(true);
+}
+function phase1AddFinishButton(){
+ const panel=$('finalPanel');if(!panel||document.getElementById('phase1Finish'))return;
+ const b=document.createElement('button');b.id='phase1Finish';b.className='primary';b.textContent='🏁 SLUIT WEDSTRYD & STOOR UITSLAG';b.style.marginTop='10px';panel.appendChild(b);b.onclick=phase1OpenFinish;
+}
+function phase1OpenFinish(){
+ if(!state||state.innings!==2||!state.inningsComplete)return;
+ const wt=$('winnerTeam');wt.innerHTML='<option value="">Kies wenner…</option>'+[TEAM_A,TEAM_B].map(t=>'<option value="'+esc(t)+'">'+esc(t)+'</option>').join('');
+ const a=state.inningsData?.[0],b=state.inningsData?.[1];
+ if(a&&b&&a.runs!==b.runs)wt.value=a.runs>b.runs?a.batTeam:b.batTeam;
+ $('resultType').value=(a&&b&&a.runs===b.runs)?'DRAW':'WIN';
+ $('winnerWrap').style.display=$('resultType').value==='WIN'?'block':'none';
+ $('resultType').onchange=()=>{$('winnerWrap').style.display=$('resultType').value==='WIN'?'block':'none'};
+ $('endModal').classList.remove('hidden');
+}
+async function phase1Finalize(){
+ const type=$('resultType').value,winnerName=$('winnerTeam').value||null,reason=$('resultReason').value.trim()||null;
+ if(type==='WIN'&&!winnerName){$('resultMsg').textContent='Kies asseblief die wenner.';return}
+ const winnerId=winnerName?PHASE1_TEAM_IDS[winnerName]:null;
+ const {error}=await phase1db.from('matches').update({status:'COMPLETED',winner_team_id:winnerId,result_type:type,result_reason:reason,completed_at:new Date().toISOString(),points_awarded:false,scorecard_closed_at:new Date().toISOString(),scorecard_closed_by_user_id:PHASE1_USER_ID}).eq('id',PHASE1_MATCH_ID);if(error){$('resultMsg').textContent=error.message;return}
+ if(type==='WIN'||type==='DRAW'){
+   await phase1db.from('team_points_log').delete().eq('match_id',PHASE1_MATCH_ID);
+   const rows=type==='DRAW'?[{match_id:PHASE1_MATCH_ID,team_id:PHASE1_TEAM_IDS[TEAM_A],result_type:'draw',points:2},{match_id:PHASE1_MATCH_ID,team_id:PHASE1_TEAM_IDS[TEAM_B],result_type:'draw',points:2}]:[...Object.entries(PHASE1_TEAM_IDS).map(([name,id])=>({name,id})).filter(x=>x.id).map(x=>({match_id:PHASE1_MATCH_ID,team_id:x.id,result_type:x.name===winnerName?'win':'participation',points:x.name===winnerName?4:1}))];
+   const {error:pe}=await phase1db.from('team_points_log').insert(rows);if(pe){$('resultMsg').textContent='Wedstryd voltooi, maar punte kon nie gestoor word nie: '+pe.message;return}
+   await phase1db.from('matches').update({points_awarded:true}).eq('id',PHASE1_MATCH_ID);
+ }
+ await phase1Persist(true);
+ $('endModal').classList.add('hidden');
+ const b=document.getElementById('phase1Finish');if(b){b.disabled=true;b.textContent='✅ WEDSTRYD GESLUIT';}
+ $('stateBanner').textContent='✅ Wedstryd is voltooi en die uitslag is in die databasis gestoor.';
+}
+$('confirmEndMatch').onclick=()=>phase1Finalize();$('cancelEndMatch').onclick=()=>$('endModal').classList.add('hidden');
+const phase1OriginalRender=render;
+render=function(){phase1OriginalRender();phase1AddFinishButton();phase1Persist(false)};
+$('start').onclick=async()=>{const n=newState();if(!n){$('stateBanner').textContent='⚠️ Kies eers toss-wenner en besluit.';return}state=n;history=[];pending=null;hidePanels();if(rule.inningsMode==='T80')setupOpeningBatters();render();await phase1Start()};
+phase1AddFinishButton();
+phase1Restore().catch(e=>console.error('Restore failed',e));
+`;
+  const pos=html.lastIndexOf('</script>');if(pos<0)throw Error('Scoring engine script ontbreek.');
+  html=html.slice(0,pos)+bridge+'\n</script>'+html.slice(pos+9);
+  html=html.replace('</head>',`<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script></head>`);
+  document.open();document.write(html);document.close();
+}
+boot().catch(fail);
+</script></body></html>
