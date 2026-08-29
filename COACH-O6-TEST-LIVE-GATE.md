@@ -1,0 +1,1 @@
+Temporary trigger for the scheduled-match access fix. The workflow updates coach-o6-test.html and this file is intentionally used only to trigger that patch.
