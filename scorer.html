@@ -107,4 +107,37 @@ $('bowled').onclick=()=>finishWicket('Bowled');$('catch').onclick=()=>{pending.d
 $('tossWinner').onchange=updateToss;$('tossDecision').onchange=updateToss;$('export').onclick=()=>{if(!state)return;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}));a.download='junior-krieket-scoring.json';a.click()};$('startSecond').disabled=false;
 try{render()}catch(e){console.error(e);$('stateBanner').textContent='⚠️ Telkaart kon nie laai nie: '+e.message}
 </script>
-</body></html>
+<script>
+// O/6 Alpha Omega match-day availability + correct run-out batter selection
+(function(){
+  let availabilityConfirmed=false;
+  const availability={};
+  const escA=v=>String(v??'').replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[m]));
+  function teamPlayers(team){return (TEAMS[ageParam]?.[team]||TEAMS['U/6']?.[team]||[]).slice();}
+  function buildAvailability(){
+    if(document.getElementById('matchAvailability'))return;
+    const anchor=document.querySelector('.card');
+    const card=document.createElement('div');card.id='matchAvailability';card.className='card';card.style.marginBottom='12px';
+    card.innerHTML='<div class="section">📋 BESKIKBARE SPELERS VANDAG</div><div class="banner warn">Bevestig asseblief watter spelers VANDAG beskikbaar is. Slegs hierdie spelers kan gedurende die wedstryd gekies word.</div><div class="grid two"><div><div class="section" id="availTitleA"></div><div id="availA" class="fielderGrid"></div></div><div><div class="section" id="availTitleB"></div><div id="availB" class="fielderGrid"></div></div></div><button id="confirmAvailability" class="primary" style="margin-top:12px;width:100%">BEVESTIG BESKIKBARE SPELERS</button><div id="availabilityMsg" class="sub" style="margin-top:8px"></div>';
+    anchor.parentNode.insertBefore(card,anchor);
+    const a=teamPlayers(TEAM_A),b=teamPlayers(TEAM_B);
+    $('availTitleA').textContent=TEAM_A+' ('+a.length+')';$('availTitleB').textContent=TEAM_B+' ('+b.length+')';
+    availability[TEAM_A]=new Set(a);availability[TEAM_B]=new Set(b);
+    const render=(team,id)=>{const arr=teamPlayers(team);$(id).innerHTML=arr.map(n=>`<button type="button" class="small ${availability[team].has(n)?'selected':''}" data-avail-player="${escA(n)}">${escA(n)}</button>`).join('');$(id).querySelectorAll('[data-avail-player]').forEach(btn=>btn.onclick=()=>{const n=btn.dataset.availPlayer;if(availability[team].has(n))availability[team].delete(n);else availability[team].add(n);render(team,id);updateAvailabilityMsg()})};
+    const updateAvailabilityMsg=()=>{const ca=availability[TEAM_A].size,cb=availability[TEAM_B].size;$('availabilityMsg').textContent=`${TEAM_A}: ${ca} beskikbaar • ${TEAM_B}: ${cb} beskikbaar`;$('confirmAvailability').disabled=ca<2||cb<2};
+    window.__renderAvailability=()=>{render(TEAM_A,'availA');render(TEAM_B,'availB');updateAvailabilityMsg()};
+    $('confirmAvailability').onclick=()=>{if(availability[TEAM_A].size<2||availability[TEAM_B].size<2)return;TEAMS[ageParam][TEAM_A]=Array.from(availability[TEAM_A]);TEAMS[ageParam][TEAM_B]=Array.from(availability[TEAM_B]);window.__availablePlayers={ [TEAM_A]:Array.from(availability[TEAM_A]), [TEAM_B]:Array.from(availability[TEAM_B])};availabilityConfirmed=true;$('confirmAvailability').disabled=true;$('confirmAvailability').textContent='✅ BESKIKBARE SPELERS BEVESTIG';$('availabilityMsg').textContent='Bevestig. Slegs hierdie spelers sal vir die wedstryd beskikbaar wees.';$('start').disabled=false;};
+    window.__renderAvailability();$('start').disabled=true;
+  }
+  function applySavedAvailability(){if(!state?.availablePlayers)return;for(const team of [TEAM_A,TEAM_B]){if(Array.isArray(state.availablePlayers[team]))TEAMS[ageParam][team]=state.availablePlayers[team].slice()}availabilityConfirmed=true;$('start').disabled=false;const c=$('matchAvailability');if(c)c.remove()}
+  const originalNewState=newState;
+  newState=function(){if(!availabilityConfirmed){$('stateBanner').textContent='⚠️ Bevestig eers die spelers wat vandag beskikbaar is.';return null}const n=originalNewState();if(n)n.availablePlayers=JSON.parse(JSON.stringify(window.__availablePlayers||{}));return n};
+  const originalStart=$('start').onclick;
+  $('start').onclick=function(){if(!availabilityConfirmed){$('stateBanner').textContent='⚠️ Bevestig eers die spelers wat vandag beskikbaar is.';return}const r=originalStart();const c=$('matchAvailability');if(c)c.remove();return r};
+  $('runout').onclick=()=>{if(!pending)return;pending.dismissal='Run Out';const panel=$('fielderPanel');panel.classList.remove('hidden');$('fielders').innerHTML=[striker(),nonstriker()].filter(n=>n&&n!=='—').map(n=>`<button type="button" class="small fielder" data-runout-batter="${escA(n)}">${escA(n)} is GERUNOUT</button>`).join('');$('fielders').querySelectorAll('[data-runout-batter]').forEach(b=>b.onclick=()=>{window.__runoutTarget=b.dataset.runoutBatter;panel.classList.add('hidden');finishWicket('Run Out')})};
+  const originalAddPlayable=addPlayable;
+  addPlayable=function(runs,kind='NORMAL',dismissal=null,fielder=null){if(dismissal==='Run Out'&&window.__runoutTarget){const target=window.__runoutTarget;window.__runoutTarget=null;if(state&&striker()!==target){const idx=state.activeBatters.indexOf(state.battingOrder.indexOf(target));if(idx>=0)state.strikerSide=idx}return originalAddPlayable(runs,kind,dismissal,fielder)}return originalAddPlayable(runs,kind,dismissal,fielder)};
+  buildAvailability();
+  setTimeout(applySavedAvailability,100);
+})();
+</script></body></html>
