@@ -3,29 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Junior Krieket – O/6 Telkaart</title>
+<title>Junior Krieket – O/6 Alpha & Omega Telkaart</title>
 </head>
-<body style="margin:0;background:#eef2f6">
+<body style="margin:0;background:#eef2f6;font-family:system-ui,sans-serif">
 <script>
-(async function(){
-  const id=new URLSearchParams(location.search).get('match');
+(function(){
+  const q=new URLSearchParams(location.search);
+  const id=q.get('match');
   if(!id){document.body.textContent='Geen wedstryd-ID is verskaf nie.';return;}
-  try{
-    const response=await fetch('scoring-engine-v6.html?match='+encodeURIComponent(id)+'&v=35',{cache:'no-store'});
-    if(!response.ok)throw new Error('Kon nie die O/6 scoring engine laai nie ('+response.status+').');
-    let html=await response.text();
-    html=html.replace('<head>','<head><base href="'+location.origin+'/">');
-    const marker='<script>';
-    const pos=html.indexOf(marker);
-    if(pos<0)throw new Error('O/6 scoring engine script kon nie gevind word nie.');
-    const supabase='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>';
-    html=html.slice(0,pos)+supabase+html.slice(pos);
-    document.open();
-    document.write(html);
-    document.close();
-  }catch(e){
-    document.body.innerHTML='<div style="padding:24px;font-family:system-ui,sans-serif;color:#b42318;background:#fff0f0;border:1px solid #f3b4b4;border-radius:12px;margin:20px">'+String(e.message||e).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))+'</div>';
-  }
+  location.replace('./scorer-v5.html?match='+encodeURIComponent(id)+'&v=36');
 })();
 </script>
 </body>
