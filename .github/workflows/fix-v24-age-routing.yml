@@ -1,0 +1,38 @@
+name: Fix V24 age routing
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/fix-v24-age-routing.yml'
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch V24 scorer routing
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('coach-v24.html')
+          s=p.read_text(encoding='utf-8')
+          old="${can?`<button class=\"primary\" onclick=\"openScorer('${f.id}')\">🏏 Open Telkaart</button>`:''}"
+          new="${can?`<button class=\"primary\" onclick=\"openScorer('${f.id}','${esc(f.age_group)}')\">🏏 Open Telkaart</button>`:''}"
+          if old not in s:
+              raise SystemExit('fixture button pattern not found')
+          s=s.replace(old,new,1)
+          old2="window.openScorer=id=>location.href=`scorer-fixed.html?match=${encodeURIComponent(id)}&v=24`;"
+          new2="window.openScorer=(id,ageGroup)=>{const age=String(ageGroup||'').toUpperCase();const scorer=age.includes('U/6')||age.includes('O/6')?'scorer-phase1.html':'scorer-fixed.html';location.href=`${scorer}?match=${encodeURIComponent(id)}&v=24`;};"
+          if old2 not in s:
+              raise SystemExit('openScorer pattern not found')
+          s=s.replace(old2,new2,1)
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add coach-v24.html
+          git commit -m 'Route V24 scorer by match age group' || exit 0
+          git push
