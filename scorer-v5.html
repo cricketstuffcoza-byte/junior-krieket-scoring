@@ -27,6 +27,11 @@ async function init(){
   if(!matchId)throw Error('Geen wedstryd-ID ontvang nie.');
   const {data:match,error:matchError}=await db.from('matches').select('id,fixture_code,team_a_id,team_b_id,match_date,match_time,venue,age_group').eq('id',matchId).maybeSingle();
   if(matchError)throw matchError;if(!match)throw Error('Die wedstryd kon nie gevind word nie.');
+  const age=String(match.age_group||'').toUpperCase().replace('O/','U/');
+  if(age==='U/8'){
+    location.replace(`Telkaart-O8-ALPHA-OMEGA-V6.html?match=${encodeURIComponent(matchId)}`);
+    return;
+  }
   const ids=[match.team_a_id,match.team_b_id].filter(Boolean);
   const {data:teams,error:teamError}=await db.from('teams').select('id,name').in('id',ids);
   if(teamError)throw teamError;
@@ -38,7 +43,6 @@ async function init(){
   players[teamA]=(mp||[]).filter(x=>x.team_id===match.team_a_id&&x.players).map(x=>[x.players.first_name,x.players.surname].filter(Boolean).join(' '));
   players[teamB]=(mp||[]).filter(x=>x.team_id===match.team_b_id&&x.players).map(x=>[x.players.first_name,x.players.surname].filter(Boolean).join(' '));
   if(players[teamA].length<2||players[teamB].length<2)throw Error('Die wedstryd se spelers kon nie volledig gelaai word nie.');
-  const age=String(match.age_group||'U/6').toUpperCase().replace('O/','U/');
   const safeMatch={teamA,teamB,group:age,date:match.match_date||'',time:String(match.match_time||'').slice(0,5),venue:match.venue||''};
   const response=await fetch(ALPHA_URL,{cache:'no-store'});if(!response.ok)throw Error('Die bewaarde Alpha & Omega telkaart kon nie gelaai word nie ('+response.status+').');
   let html=await response.text();
