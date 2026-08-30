@@ -1,0 +1,36 @@
+name: Fix over bowler selection
+on:
+  push:
+    branches: [main]
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch over transition
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('scorer-fixed.html')
+          s=p.read_text()
+          old="function endBallIfNeeded(){const i=cur();if(i.overBalls>=5){i.overs++;i.overBalls=0;[i.striker,i.non]=[i.non,i.striker];i.bowler=null;selectedBowler=null;return true}return false}"
+          new="function endBallIfNeeded(){const i=cur();if(i.overBalls>=5||((i.balls%5)===0&&i.balls>0)){i.overs=Math.floor(i.balls/5);i.overBalls=i.balls%5;[i.striker,i.non]=[i.non,i.striker];i.bowler=null;selectedBowler=null;return true}i.overs=Math.floor(i.balls/5);i.overBalls=i.balls%5;return false}"
+          if old not in s: raise SystemExit('endBallIfNeeded block not found')
+          s=s.replace(old,new,1)
+          old2="""if(retired){replacementSlot=i.striker===null?'striker':'non';pendingNew=null;$('newReason').textContent='Die kolwer het '+retired.reason+' bereik en tree af. Kies die een nuwe kolwer.';show('newBatterCard');newBatterChoices();return}if(overEnded){showScoreOrBowler()}else show('scoreCard')"""
+          new2="""if(retired){replacementSlot=i.striker===null?'striker':'non';pendingNew=null;$('newReason').textContent='Die kolwer het '+retired.reason+' bereik en tree af. Kies die een nuwe kolwer.';show('newBatterCard');newBatterChoices();return}if(overEnded||i.bowler===null){showScoreOrBowler()}else show('scoreCard')"""
+          if old2 not in s: raise SystemExit('run transition block not found')
+          s=s.replace(old2,new2,1)
+          p.write_text(s)
+          PY
+      - name: Commit and remove workflow
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add scorer-fixed.html
+          git rm .github/workflows/fix-over-bowler-selection.yml
+          git commit -m "Fix automatic bowler selection after every five balls"
+          git push
