@@ -1,4 +1,4 @@
-name: Fix O8 bowler selection
+name: Fix O8 scorer flow
 
 on:
   push:
@@ -23,21 +23,46 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import re
-
           p = Path('scorer-fixed.html')
           s = p.read_text(encoding='utf-8')
 
-          old = re.search(r'function ui\(\)\{.*?\}function endBallIfNeeded\(\)', s)
-          if not old:
-              raise SystemExit('Could not find ui() block')
-          new = '''function ui(){const i=cur();hide('setup');show('game');hide('batSelect');hide('bowlSelect');hide('scoreCard');hide('eventCard');hide('newBatterCard');if(i.striker&&i.non&&!i.bowler){selectedBowler=null;$('confirmBowl').disabled=true;show('bowlSelect');bowlChoices();render();return}if(i.striker&&i.non&&i.bowler){show('scoreCard');render();return}if(!i.striker&&i.non){replacementSlot='striker';$('newReason').textContent='Die vorige kolwer is uit. Kies slegs die een nuwe kolwer.';show('newBatterCard');newBatterChoices();render();return}selectedBat=[];show('batSelect');batChoices();render()}function endBallIfNeeded(){'''
-          s = s[:old.start()] + new + s[old.end():]
+          # 1) Add a visible undo button to the scoring controls.
+          s = s.replace('<h3>🏏 AANTEKEN</h3><div class="score">', '<h3>🏏 AANTEKEN</h3><button id="undo" class="danger" style="margin-bottom:10px;width:100%" disabled>↩️ UNDO LAATSTE BAL</button><div class="score">', 1)
 
-          old2 = re.search(r'function showScoreOrBowler\(\)\{.*?\}async function openEvent', s)
-          if not old2:
-              raise SystemExit('Could not find showScoreOrBowler block')
-          new2 = '''function showScoreOrBowler(){const i=cur();hide('scoreCard');hide('eventCard');hide('newBatterCard');if(i.striker&&i.non&&!i.bowler){selectedBowler=null;$('confirmBowl').disabled=true;show('bowlSelect');bowlChoices();render();return}if(i.striker&&i.non&&i.bowler){show('scoreCard');render();return}ui()}async function openEvent'''
-          s = s[:old2.start()] + new2 + s[old2.end():]
+          # 2) Keep an in-memory stack of scoring snapshots. This is deliberately
+          # stored inside state_json so it survives a page refresh during the match.
+          s = s.replace("state={inningsNo:1,started:false,tossWinner:null,decision:null,innings:[null,null],stats:{},bowlStats:{},log:[]}", "state={inningsNo:1,started:false,tossWinner:null,decision:null,innings:[null,null],stats:{},bowlStats:{},log:[],undoStack:[]}", 1)
+
+          # 3) Insert snapshot/undo helpers before the UI state machine.
+          marker = "function ui(){"
+          if "function checkpoint(){" not in s:
+              helper = """function checkpoint(){state.undoStack=state.undoStack||[];const snap=JSON.parse(JSON.stringify(state));snap.undoStack=[];state.undoStack.push(snap);if(state.undoStack.length>20)state.undoStack.shift();renderUndo()}function renderUndo(){const b=$('undo');if(b)b.disabled=!(state&&state.undoStack&&state.undoStack.length)}async function undoLast(){if(!state?.undoStack?.length)return;state=state.undoStack.pop();selectedBowler=null;selectedBat=[];pendingNew=null;replacementSlot=null;event=null;render();ui();await save();renderUndo()}"""
+              s = s.replace(marker, helper + marker, 1)
+
+          # 4) Make the over transition unconditional and explicit. A completed
+          # over always clears the bowler and routes to the bowler selector.
+          s = re.sub(r"function showScoreOrBowler\(\)\{.*?\}async function openEvent", "function showScoreOrBowler(){const i=cur();hide('scoreCard');hide('eventCard');hide('newBatterCard');if(i.striker&&i.non&&!i.bowler){selectedBowler=null;$('confirmBowl').disabled=true;show('bowlSelect');bowlChoices();render();return}if(i.striker&&i.non&&i.bowler){show('scoreCard');render();return}ui()}async function openEvent", s, count=1)
+
+          # 5) Take a snapshot immediately before every operation that changes
+          # the score/state, so one bad entry can always be undone.
+          replacements = [
+              ("async function run(r){const i=cur();if(!i.striker", "async function run(r){const i=cur();if(!i.striker"),
+          ]
+          # Insert only once at the exact mutation entry points.
+          s = s.replace("async function run(r){const i=cur();if(!i.striker||!i.non||!i.bowler)return;", "async function run(r){const i=cur();if(!i.striker||!i.non||!i.bowler)return;checkpoint();", 1)
+          s = s.replace("async function confirmEvent(){const i=cur(),b=bs(i.bowler),total=1+(event.extra||0);", "async function confirmEvent(){const i=cur(),b=bs(i.bowler),total=1+(event.extra||0);checkpoint();", 1)
+          s = s.replace("async function confirmWicket(){const i=cur(),out=event.out,was=i.striker===out,s=ps(out),b=bs(i.bowler);", "async function confirmWicket(){const i=cur(),out=event.out,was=i.striker===out,s=ps(out),b=bs(i.bowler);checkpoint();", 1)
+          s = s.replace("else if(event?.kind==='BYE'||event?.kind==='LEGBYE'){const i=cur(),b=bs(i.bowler),n=event.extra;", "else if(event?.kind==='BYE'||event?.kind==='LEGBYE'){const i=cur(),b=bs(i.bowler),n=event.extra;checkpoint();", 1)
+
+          # 6) Hook up the undo button and make render keep its state current.
+          s = s.replace("$('eventCancel').onclick=", "$('undo').onclick=undoLast;$('eventCancel').onclick=", 1)
+          s = s.replace("$('log').innerHTML=state.log.length?", "renderUndo();$('log').innerHTML=state.log.length?", 1)
+
+          # 7) Any old live state created before undo existed gets an empty stack.
+          s = s.replace("if(live?.state_json){state=live.state_json;ui()}", "if(live?.state_json){state=live.state_json;state.undoStack=state.undoStack||[];ui()}", 1)
+
+          # 8) After an over ends, route directly to the new bowler selector.
+          s = s.replace("if(overEnded)showScoreOrBowler();else show('scoreCard')", "if(overEnded){showScoreOrBowler()}else show('scoreCard')", 1)
 
           p.write_text(s, encoding='utf-8')
           print('patched scorer-fixed.html')
@@ -52,5 +77,5 @@ jobs:
             echo "No scorer change needed"
             exit 0
           fi
-          git commit -m "Fix O8 bowler selection after over"
+          git commit -m "Add scorer undo and reliable bowler transition"
           git push
