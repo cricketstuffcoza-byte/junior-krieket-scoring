@@ -1,1 +1,134 @@
-<!doctype html><html lang="af"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Junior Krieket – O/8 T80 V4</title><meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"></head><body><script>location.replace('./Telkaart-O8-ALPHA-OMEGA-V2.html'+(location.search||'')+(location.hash||''));</script><noscript><a id="go" href="./Telkaart-O8-ALPHA-OMEGA-V2.html">Open telkaart</a></noscript></body></html>
+<!doctype html>
+<html lang="af">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Junior Krieket – O/8 T80 V4</title>
+<style>
+html,body{margin:0;width:100%;height:100%;background:#eef2f6}
+#v4Frame{display:block;width:100%;height:100%;min-height:100vh;border:0}
+</style>
+</head>
+<body>
+<iframe id="v4Frame" title="Junior Krieket O/8 T80 V4" src="./Telkaart-O8-ALPHA-OMEGA-V2.html"></iframe>
+<script>
+(function(){
+  const frame=document.getElementById('v4Frame');
+  frame.addEventListener('load',function(){
+    const d=frame.contentDocument;
+    if(!d||!d.body)return;
+    const s=d.createElement('script');
+    s.textContent=`
+(function(){
+  'use strict';
+  if(window.__O8V4_SPECIAL_PATCH__)return;
+  window.__O8V4_SPECIAL_PATCH__=true;
+  const oldWide=document.getElementById('wide');
+  const oldNoBall=document.getElementById('noball');
+  if(!oldWide||!oldNoBall)return;
+
+  const style=document.createElement('style');
+  style.textContent='.o8modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;z-index:99999;padding:18px;box-sizing:border-box}.o8modal.hidden{display:none}.o8box{background:#fff;border-radius:16px;max-width:560px;width:100%;padding:20px;box-shadow:0 12px 40px #0005;font-family:system-ui,sans-serif}.o8box h2{margin:0 0 8px}.o8box label{display:block;font-weight:700;margin-top:12px}.o8box input,.o8box select{width:100%;box-sizing:border-box;padding:12px;margin-top:5px;border:1px solid #ccd4df;border-radius:10px;font-size:16px}.o8actions{display:flex;gap:8px;margin-top:18px}.o8actions button{flex:1;padding:13px;border:0;border-radius:10px;font-weight:800;font-size:15px}.o8ok{background:#172033;color:#fff}.o8cancel{background:#eef2f6;color:#172033}';
+  d.head.appendChild(style);
+
+  const modal=d.createElement('div');
+  modal.className='o8modal hidden';
+  modal.innerHTML='<div class="o8box"><h2 id="o8Title">Ekstra lopies</h2><p id="o8Help"></p><div id="o8Fields"></div><div class="o8actions"><button class="o8cancel" id="o8Cancel">Kanselleer</button><button class="o8ok" id="o8Confirm">BEVESTIG</button></div></div>';
+  d.body.appendChild(modal);
+
+  const title=modal.querySelector('#o8Title'),help=modal.querySelector('#o8Help'),fields=modal.querySelector('#o8Fields');
+  let mode=null;
+  function input(id,label,value){return '<label>'+label+'<input id="'+id+'" type="number" min="0" step="1" value="'+value+'"></label>'}
+  function open(kind){
+    mode=kind;
+    if(kind==='WIDE'){
+      title.textContent='Wide – ekstra lopies';
+      help.textContent='Die 1 wide-lopie word outomaties bygetel. Voer slegs die ekstra lopies in wat ná die wide gehardloop/gekry is.';
+      fields.innerHTML=input('o8Extra','Ekstra lopies ná die wide',0)+ '<label>Run-out op hierdie wide?<select id="o8Runout"><option value="NO">Nee</option><option value="YES">Ja</option></select></label>';
+    }else{
+      title.textContent='No-ball – lopies op hierdie bal';
+      help.textContent='Die 1 no-ball-lopie word outomaties bygetel. Indien die kolwer die bal slaan, plaas sy lopies by Kolwer. Byes/leg-byes bly ekstra lopies en gaan nie na die kolwer nie.';
+      fields.innerHTML=input('o8Bat','Kolwer-lopies',0)+input('o8Bye','Byes',0)+input('o8Leg','Leg-byes',0)+'<label>Run-out op hierdie no-ball?<select id="o8Runout"><option value="NO">Nee</option><option value="YES">Ja</option></select></label>';
+    }
+    modal.classList.remove('hidden');
+  }
+  function close(){modal.classList.add('hidden');mode=null}
+  modal.querySelector('#o8Cancel').onclick=close;
+  modal.querySelector('#o8Confirm').onclick=commit;
+
+  function num(id){const n=Number(modal.querySelector('#'+id)?.value||0);return Number.isFinite(n)&&n>=0?Math.floor(n):0}
+
+  function commit(){
+    const i=current();
+    if(!state||!i||!state.started||!i.striker||!i.non||!i.bowler||i.retirementPending){close();return}
+    const kind=mode;
+    if(kind==='WIDE'){
+      const extra=num('o8Extra'), total=1+extra;
+      const runout=modal.querySelector('#o8Runout').value==='YES';
+      recordSpecial(kind,total,0,0,total,runout);
+    }else if(kind==='NOBALL'){
+      const bat=num('o8Bat'),bye=num('o8Bye'),leg=num('o8Leg'),total=1+bat+bye+leg;
+      const runout=modal.querySelector('#o8Runout').value==='YES';
+      recordSpecial(kind,total,bat,bye,1+bye+leg,runout,leg);
+    }
+    close();
+  }
+
+  function recordSpecial(kind,total,bat,bye,bowlerRuns,runout,leg){
+    const i=current(),striker=i.striker,bs=bowlStats(i.bowler),ps=playerStats(striker);
+    i.balls++;i.overBalls++;i.runs+=total;ps.balls++;bs.balls++;bs.runs+=bowlerRuns;
+    if(kind==='WIDE')bs.wides+=total;
+    if(kind==='NOBALL')bs.noballs+=1;
+    if(kind==='NOBALL'&&bat){ps.runs+=bat;if(bat===4)ps.fours++;if(bat===6)ps.sixes++}
+    if(kind==='NOBALL'&&bye){}
+    if(kind==='NOBALL'&&leg){}
+    if(runout){
+      pendingDismiss='Run out';
+      pendingRunoutDelivery=true;
+      $('dismissCard').classList.add('hidden');
+      showRunoutChoice();
+      state.log.push({ball:i.overs+'.'+i.overBalls,text:kind+' +'+total+' • Run-out moet bevestig word'});
+      render();
+      return;
+    }
+    state.log.push({ball:i.overs+'.'+i.overBalls,text:kind+' +'+total+' spanlopies'+(kind==='NOBALL'&&bat?' • '+pname(striker)+' +'+bat:'')});
+    render();endDelivery();persist();
+  }
+
+  let pendingRunoutDelivery=false;
+  function showRunoutChoice(){
+    const i=current();
+    const card=d.getElementById('dismissCard');
+    const choices=d.getElementById('dismissChoices');
+    const confirm=d.getElementById('confirmDismiss');
+    choices.innerHTML='<button data-id="Run out: '+esc(pname(i.striker))+'">Run out – '+esc(pname(i.striker))+'</button><button data-id="Run out: '+esc(pname(i.non))+'">Run out – '+esc(pname(i.non))+'</button>';
+    choices.querySelectorAll('button').forEach(b=>b.onclick=()=>{pendingDismiss=b.dataset.id;confirm.disabled=false;choices.querySelectorAll('button').forEach(x=>x.classList.remove('selected'));b.classList.add('selected')});
+    card.classList.remove('hidden');confirm.disabled=true;
+  }
+
+  const oldConfirmDismiss=d.getElementById('confirmDismiss');
+  oldConfirmDismiss.onclick=function(){
+    if(!pendingRunoutDelivery){commitWicket();return}
+    const i=current();
+    if(!pendingDismiss)return;
+    const outId=pendingDismiss.indexOf(': ')>=0?pendingDismiss.split(': ').slice(1).join(': '):pname(i.striker);
+    const player=players.find(p=>p.team_id===i.battingTeam && pname(p.id)===outId);
+    const id=player?.id||i.striker,ps=playerStats(id),bs=bowlStats(i.bowler);
+    ps.out='Run out';i.out.push(id);i.wickets++;bs.wickets++;state.log.push({ball:i.overs+'.'+i.overBalls,text:pname(id)+' UIT – Run out'});
+    pendingDismiss=null;pendingRunoutDelivery=false;d.getElementById('dismissCard').classList.add('hidden');
+    if(i.striker===id)i.striker=null;else if(i.non===id)i.non=null;
+    render();
+    if(endInningsCheck())return;
+    if(i.overBalls>=5){i.overs++;i.overBalls=0;i.bowler=null;selectedBowl=null;render();d.getElementById('bowlSelect').classList.remove('hidden');renderBowlerChoices();d.getElementById('confirmBowl').disabled=true;persist();return}
+    pendingNew=null;pendingReason=pname(id)+' is uit (Run out). Kies die volgende kolwer.';d.getElementById('newBatterReason').textContent=pendingReason;d.getElementById('newBatterCard').classList.remove('hidden');renderNewBatter();d.getElementById('confirmNewBatter').disabled=true;render();persist();
+  };
+
+  oldWide.onclick=function(){open('WIDE')};
+  oldNoBall.onclick=function(){open('NOBALL')};
+})();`;
+    d.body.appendChild(s);
+  });
+})();
+</script>
+</body>
+</html>
