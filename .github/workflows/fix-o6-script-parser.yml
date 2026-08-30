@@ -1,0 +1,31 @@
+name: Fix O6 scorer script parser
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Escape embedded closing script tag
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('scorer-phase1.html')
+          s=p.read_text()
+          old="html=html.slice(0,pos)+bridge+'\\n</script>'+html.slice(pos+9);"
+          new="html=html.slice(0,pos)+bridge+'\\n<\\/script>'+html.slice(pos+9);"
+          if old not in s:
+              raise SystemExit('target string not found')
+          p.write_text(s.replace(old,new,1))
+          PY
+      - name: Commit fix and remove temporary workflow
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          rm -f .github/workflows/fix-o6-script-parser.yml
+          git add scorer-phase1.html .github/workflows/fix-o6-script-parser.yml
+          git diff --cached --quiet || git commit -m 'Fix O6 scorer script parsing'
+          git push
