@@ -11,11 +11,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: phase1-production
-      - name: Inspect runout and scoring handlers
+      - name: Inspect scoring core
         run: |
-          echo '--- RUNOUT ---'
-          grep -n -i -E 'runout|run out|wicket' scorer.html | tail -n 30 || true
-          echo '--- HANDLERS ---'
-          grep -n -E 'onclick|addEventListener|function .*score|function .*ball|function .*wicket|function .*dismiss' scorer.html | tail -n 80 || true
+          echo '--- ADD PLAYABLE ---'
+          sed -n '72,84p' scorer.html
+          echo '--- RETIREMENT ---'
+          sed -n '79,86p' scorer.html
           echo '--- START ---'
-          grep -n -E "\$('start'\)|id=\"start\"|newState|pairChoices|TEAMS" scorer.html | tail -n 50 || true
+          sed -n '100,108p' scorer.html
