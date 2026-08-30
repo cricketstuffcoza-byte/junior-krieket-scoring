@@ -1,10 +1,42 @@
-<!doctype html><html lang="af"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Junior Krieket – Fase 1 Telkaart</title></head><body><p id="m">Laai Fase 1 telkaart…</p><script>
-(async()=>{try{const u='https://raw.githubusercontent.com/cricketstuffcoza-byte/junior-krieket-scoring/phase1-production/scorer-phase1.html?v=20260830-o6-availability-2';const r=await fetch(u);if(!r.ok)throw Error('Fase 1 scorer kon nie gelaai word nie.');let h=await r.text();
-h=h.replace("if(state.innings===2&&state.inningsComplete)return 'COMPLETED';","if(false)return 'COMPLETED';");
-h=h.replace("async function phase1EnsurePlayers(){\n const rows=(players||[]).map(p=>({match_id:PHASE1_MATCH_ID,player_id:p.id,team_id:p.team_id}));\n if(rows.length) await phase1db.from('match_players').upsert(rows,{onConflict:'match_id,player_id'});\n}","async function phase1EnsurePlayers(){\n await phase1db.from('match_players').delete().eq('match_id',PHASE1_MATCH_ID);\n const rows=(players||[]).map(p=>({match_id:PHASE1_MATCH_ID,player_id:p.id,team_id:p.team_id}));\n if(rows.length){const {error}=await phase1db.from('match_players').insert(rows);if(error)throw error;}\n}");
-h=h.replace(" await phase1Persist(true);\n $('endModal').classList.add('hidden');"," $('endModal').classList.add('hidden');");
-h=h.replace("if(data?.state_json){state=data.state_json;history=[];pending=null;phase1Loaded=true;render();}","if(data?.state_json){state=data.state_json;history=[];pending=null;phase1Loaded=true;if(state.tossWinner)$('tossWinner').value=state.tossWinner;if(state.tossDecision)$('tossDecision').value=state.tossDecision;updateToss();render();}");
-// Prevent the browser HTML parser from treating the embedded closing tag inside the fetched scoring engine as the end of this loader script.
-h=h.replace("html.slice(0,pos)+bridge+'\\n</script>'","html.slice(0,pos)+bridge+'\\n'+String.fromCharCode(60)+'/script>'");
-document.open();document.write(h);document.close()}catch(e){document.getElementById('m').textContent=e.message}})();
-</script></body></html>
+<!doctype html>
+<html lang="af">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Junior Krieket – Fase 1 Telkaart</title>
+<style>
+html,body{margin:0;padding:0;width:100%;height:100%;background:#eef2f6}
+#frame{display:block;width:100%;height:100vh;border:0}
+#boot{font-family:system-ui,sans-serif;max-width:760px;margin:12vh auto;padding:24px;background:#fff;border-radius:18px}
+.err{color:#b42318}
+</style>
+</head>
+<body>
+<div id="boot"><p id="m">Laai Fase 1 telkaart…</p></div>
+<script>
+(async()=>{
+  try{
+    const matchId=new URLSearchParams(location.search).get('match');
+    if(!matchId) throw Error('Geen wedstryd-ID is verskaf nie.');
+    const u='https://raw.githubusercontent.com/cricketstuffcoza-byte/junior-krieket-scoring/phase1-production/scorer-phase1.html?v=20260830-o6-srcdoc-1';
+    const r=await fetch(u,{cache:'no-store'});
+    if(!r.ok) throw Error('Fase 1 scorer kon nie gelaai word nie.');
+    let h=await r.text();
+    const old="const MATCH_ID=new URLSearchParams(location.search).get('match');";
+    const replacement='const MATCH_ID='+JSON.stringify(matchId)+';';
+    if(!h.includes(old)) throw Error('O/6 scorer se wedstryd-ID haak kon nie gevind word nie.');
+    h=h.replace(old,replacement);
+    const boot=document.getElementById('boot');
+    const frame=document.createElement('iframe');
+    frame.id='frame';
+    frame.setAttribute('title','Junior Krieket – Fase 1 Telkaart');
+    frame.srcdoc=h;
+    document.body.replaceChildren(frame);
+  }catch(e){
+    const m=document.getElementById('m');
+    if(m){m.className='err';m.textContent=e?.message||String(e);}
+  }
+})();
+</script>
+</body>
+</html>
