@@ -1,0 +1,33 @@
+name: Force correct coach scorecard route
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/force-correct-coach-scorecard-route.yml'
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix coach routing
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('coach-v24.html')
+          s=p.read_text(encoding='utf-8')
+          pattern=r"window\.openScorer=id=>\{.*?\};"
+          replacement="""window.openScorer=async id=>{const safeId=String(id||'').trim();if(!safeId)return;try{const r=await fetch('https://moomommajyldjquncnrd.supabase.co/rest/v1/matches?select=age_group&id=eq.'+encodeURIComponent(safeId),{headers:{Accept:'application/json'}});const rows=await r.json();const age=String(rows?.[0]?.age_group||'').toUpperCase();const scorer=(age.includes('U/6')||age.includes('O/6'))?'scorer-phase1.html':(age.includes('U/8')||age.includes('O/8'))?'scorer-fixed.html':null;if(!scorer)throw new Error('Onbekende ouderdomsgroep');location.href=scorer+'?match='+encodeURIComponent(safeId)+'&v='+(scorer==='scorer-phase1.html'?'19':'40');}catch(e){alert('Kon nie die korrekte telkaart bepaal nie. '+e.message);}};"""
+          s2,n=re.subn(pattern,replacement,s,count=1,flags=re.S)
+          if n!=1: raise SystemExit('openScorer not found')
+          p.write_text(s2,encoding='utf-8')
+          PY
+      - name: Commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add coach-v24.html
+          git commit -m 'Route coach matches to correct age scorecard' || exit 0
+          git push
