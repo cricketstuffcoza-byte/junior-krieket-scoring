@@ -26,43 +26,76 @@ jobs:
           p = Path('scorer-fixed.html')
           s = p.read_text(encoding='utf-8')
 
-          # 1) Add a visible undo button to the scoring controls.
+          # Undo button and persistent undo snapshots.
           s = s.replace('<h3>🏏 AANTEKEN</h3><div class="score">', '<h3>🏏 AANTEKEN</h3><button id="undo" class="danger" style="margin-bottom:10px;width:100%" disabled>↩️ UNDO LAATSTE BAL</button><div class="score">', 1)
-
-          # 2) Keep an in-memory stack of scoring snapshots. This is deliberately
-          # stored inside state_json so it survives a page refresh during the match.
           s = s.replace("state={inningsNo:1,started:false,tossWinner:null,decision:null,innings:[null,null],stats:{},bowlStats:{},log:[]}", "state={inningsNo:1,started:false,tossWinner:null,decision:null,innings:[null,null],stats:{},bowlStats:{},log:[],undoStack:[]}", 1)
 
-          # 3) Insert snapshot/undo helpers before the UI state machine.
           marker = "function ui(){"
           if "function checkpoint(){" not in s:
               helper = """function checkpoint(){state.undoStack=state.undoStack||[];const snap=JSON.parse(JSON.stringify(state));snap.undoStack=[];state.undoStack.push(snap);if(state.undoStack.length>20)state.undoStack.shift();renderUndo()}function renderUndo(){const b=$('undo');if(b)b.disabled=!(state&&state.undoStack&&state.undoStack.length)}async function undoLast(){if(!state?.undoStack?.length)return;state=state.undoStack.pop();selectedBowler=null;selectedBat=[];pendingNew=null;replacementSlot=null;event=null;render();ui();await save();renderUndo()}"""
               s = s.replace(marker, helper + marker, 1)
 
-          # 4) Make the over transition unconditional and explicit. A completed
-          # over always clears the bowler and routes to the bowler selector.
+          # Reliable bowler transition after every completed five-ball over.
           s = re.sub(r"function showScoreOrBowler\(\)\{.*?\}async function openEvent", "function showScoreOrBowler(){const i=cur();hide('scoreCard');hide('eventCard');hide('newBatterCard');if(i.striker&&i.non&&!i.bowler){selectedBowler=null;$('confirmBowl').disabled=true;show('bowlSelect');bowlChoices();render();return}if(i.striker&&i.non&&i.bowler){show('scoreCard');render();return}ui()}async function openEvent", s, count=1)
 
-          # 5) Take a snapshot immediately before every operation that changes
-          # the score/state, so one bad entry can always be undone.
-          replacements = [
-              ("async function run(r){const i=cur();if(!i.striker", "async function run(r){const i=cur();if(!i.striker"),
-          ]
-          # Insert only once at the exact mutation entry points.
           s = s.replace("async function run(r){const i=cur();if(!i.striker||!i.non||!i.bowler)return;", "async function run(r){const i=cur();if(!i.striker||!i.non||!i.bowler)return;checkpoint();", 1)
           s = s.replace("async function confirmEvent(){const i=cur(),b=bs(i.bowler),total=1+(event.extra||0);", "async function confirmEvent(){const i=cur(),b=bs(i.bowler),total=1+(event.extra||0);checkpoint();", 1)
           s = s.replace("async function confirmWicket(){const i=cur(),out=event.out,was=i.striker===out,s=ps(out),b=bs(i.bowler);", "async function confirmWicket(){const i=cur(),out=event.out,was=i.striker===out,s=ps(out),b=bs(i.bowler);checkpoint();", 1)
           s = s.replace("else if(event?.kind==='BYE'||event?.kind==='LEGBYE'){const i=cur(),b=bs(i.bowler),n=event.extra;", "else if(event?.kind==='BYE'||event?.kind==='LEGBYE'){const i=cur(),b=bs(i.bowler),n=event.extra;checkpoint();", 1)
-
-          # 6) Hook up the undo button and make render keep its state current.
           s = s.replace("$('eventCancel').onclick=", "$('undo').onclick=undoLast;$('eventCancel').onclick=", 1)
           s = s.replace("$('log').innerHTML=state.log.length?", "renderUndo();$('log').innerHTML=state.log.length?", 1)
-
-          # 7) Any old live state created before undo existed gets an empty stack.
           s = s.replace("if(live?.state_json){state=live.state_json;ui()}", "if(live?.state_json){state=live.state_json;state.undoStack=state.undoStack||[];ui()}", 1)
-
-          # 8) After an over ends, route directly to the new bowler selector.
           s = s.replace("if(overEnded)showScoreOrBowler();else show('scoreCard')", "if(overEnded){showScoreOrBowler()}else show('scoreCard')", 1)
+
+          # O/8 league rule: a batter retires once they reach 15 runs OR 15 balls.
+          # Retirement is not a wicket and does not increase the wicket count.
+          s = s.replace(
+              "function ps(id){return state.stats[id]||(state.stats[id]={runs:0,balls:0,fours:0,sixes:0,out:null})}",
+              "function ps(id){return state.stats[id]||(state.stats[id]={runs:0,balls:0,fours:0,sixes:0,out:null,retiredReason:null})}"
+          )
+          s = s.replace(
+              "state.stats[p.id]={runs:0,balls:0,fours:0,sixes:0,out:null};",
+              "state.stats[p.id]={runs:0,balls:0,fours:0,sixes:0,out:null,retiredReason:null};"
+          )
+          old = "const s=ps(p.id),st=i.out.includes(p.id)?'UIT – '+(s.out||''):i.striker===p.id?'KOLF':i.non===p.id?'NIE-KOLF':'—';"
+          new = "const s=ps(p.id),st=i.out.includes(p.id)?'UIT – '+(s.out||''):i.retired.includes(p.id)?'AFTREE – '+(s.retiredReason||'15-limiet'):i.striker===p.id?'KOLF':i.non===p.id?'NIE-KOLF':'—';"
+          s = s.replace(old, new)
+
+          marker = "function endBallIfNeeded(){"
+          helper = """function retirementReason(id){const s=ps(id);if(s.runs>=15)return '15 lopies';if(s.balls>=15)return '15 balle';return null}function retireEligibleBatter(){const i=cur();const ids=[i.striker,i.non].filter(Boolean);for(const id of ids){if(i.out.includes(id)||i.retired.includes(id))continue;const reason=retirementReason(id);if(!reason)continue;const st=ps(id);i.retired=i.retired||[];i.retired.push(id);st.retiredReason=reason;if(i.striker===id)i.striker=null;if(i.non===id)i.non=null;state.log.push({ball:i.overs+'.'+i.overBalls,text:pname(id)+' AFTREE – '+reason});return {id,reason}}return null}"""
+          if "function retirementReason(id)" not in s:
+              s = s.replace(marker, helper + marker, 1)
+
+          old_ui = "else if(!i.striker&&i.non){replacementSlot='striker';$('newReason').textContent='Die vorige kolwer is uit. Kies slegs die een nuwe kolwer.';show('newBatterCard');newBatterChoices()}else{selectedBat=[];show('batSelect');batChoices()}"
+          new_ui = "else if((i.striker===null)!==(i.non===null)){replacementSlot=i.striker===null?'striker':'non';$('newReason').textContent='Die kolwer het die 15-limiet bereik en tree af. Kies die een nuwe kolwer.';show('newBatterCard');newBatterChoices()}else{selectedBat=[];show('batSelect');batChoices()}"
+          s = s.replace(old_ui, new_ui)
+
+          # Replace the normal run route so retirement is checked before the
+          # scorer decides whether to show the scoring controls or next bowler.
+          pattern = r"async function run\(r\)\{.*?\}function showScoreOrBowler\(\)\{"
+          replacement = """async function run(r){const i=cur();if(!i.striker||!i.non||!i.bowler)return;checkpoint();const s=ps(i.striker),b=bs(i.bowler);i.runs+=r;i.balls++;i.overBalls++;s.runs+=r;s.balls++;b.balls++;b.runs+=r;if(r===4)s.fours++;if(r===6)s.sixes++;state.log.push({ball:i.overs+'.'+i.overBalls,text:pname(i.striker)+' '+r});if(r%2)[i.striker,i.non]=[i.non,i.striker];const overEnded=endBallIfNeeded();const retired=retireEligibleBatter();render();await save();if(retired){replacementSlot=i.striker===null?'striker':'non';pendingNew=null;$('newReason').textContent='Die kolwer het '+retired.reason+' bereik en tree af. Kies die een nuwe kolwer.';show('newBatterCard');newBatterChoices();return}if(overEnded){showScoreOrBowler()}else show('scoreCard')}function showScoreOrBowler(){"""
+          s, n = re.subn(pattern, replacement, s, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit('Could not patch run()')
+
+          # Wides/no-balls also go through the retirement check. The scorer's
+          # existing custom rule that they count as a ball is preserved.
+          s = s.replace(
+              "const overEnded=endBallIfNeeded();hide('eventCard');render();await save();if(event.out&&i.balls<80&&i.wickets<10){",
+              "const overEnded=endBallIfNeeded();const retired=event.out?null:retireEligibleBatter();hide('eventCard');render();await save();if(retired){replacementSlot=i.striker===null?'striker':'non';pendingNew=null;$('newReason').textContent='Die kolwer het '+retired.reason+' bereik en tree af. Kies die een nuwe kolwer.';show('newBatterCard');newBatterChoices()}else if(event.out&&i.balls<80&&i.wickets<10){"
+          )
+
+          # BYE/LEG-BYE are legal balls and can also trigger the limit.
+          old_extra = "const oe=endBallIfNeeded();hide('eventCard');render();await save();if(oe)showScoreOrBowler();else show('scoreCard')"
+          new_extra = "const oe=endBallIfNeeded();const retired=retireEligibleBatter();hide('eventCard');render();await save();if(retired){replacementSlot=i.striker===null?'striker':'non';pendingNew=null;$('newReason').textContent='Die kolwer het '+retired.reason+' bereik en tree af. Kies die een nuwe kolwer.';show('newBatterCard');newBatterChoices()}else if(oe)showScoreOrBowler();else show('scoreCard')"
+          s = s.replace(old_extra, new_extra, 1)
+
+          # Resume protection: if an existing live match already has a batter
+          # above a limit, retire that batter immediately instead of leaving the
+          # scorer in an impossible state.
+          old_boot = "if(live?.state_json){state=live.state_json;state.undoStack=state.undoStack||[];ui()}"
+          new_boot = "if(live?.state_json){state=live.state_json;state.undoStack=state.undoStack||[];if(!state.stats)state.stats={};if(!state.bowlStats)state.bowlStats={};players.forEach(p=>{if(!state.stats[p.id])state.stats[p.id]={runs:0,balls:0,fours:0,sixes:0,out:null,retiredReason:null};if(!state.bowlStats[p.id])state.bowlStats[p.id]={balls:0,runs:0,wides:0,noballs:0,wickets:0,catches:0,runouts:0}});const ri=cur();if(ri){ri.retired=ri.retired||[];const rr=retireEligibleBatter();if(rr){replacementSlot=ri.striker===null?'striker':'non';pendingNew=null}}ui()}"
+          s = s.replace(old_boot, new_boot, 1)
 
           p.write_text(s, encoding='utf-8')
           print('patched scorer-fixed.html')
@@ -77,5 +110,5 @@ jobs:
             echo "No scorer change needed"
             exit 0
           fi
-          git commit -m "Add scorer undo and reliable bowler transition"
+          git commit -m "Add O8 retirement rule and reliable scorer flow"
           git push
