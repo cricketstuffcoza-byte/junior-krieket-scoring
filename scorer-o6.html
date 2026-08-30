@@ -4,33 +4,25 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Junior Krieket – O/6 Telkaart</title>
-<style>html,body{margin:0;width:100%;height:100%;background:#eef2f6;font-family:system-ui,sans-serif}iframe{display:block;width:100%;height:100%;border:0}</style>
 </head>
-<body>
+<body style="margin:0;background:#eef2f6">
 <script>
 (async function(){
-  const q=new URLSearchParams(location.search);
-  const id=q.get('match');
+  const id=new URLSearchParams(location.search).get('match');
   if(!id){document.body.textContent='Geen wedstryd-ID is verskaf nie.';return;}
   try{
-    const response=await fetch('scoring-engine-v6.html?match='+encodeURIComponent(id)+'&v=33',{cache:'no-store'});
+    const response=await fetch('scoring-engine-v6.html?match='+encodeURIComponent(id)+'&v=35',{cache:'no-store'});
     if(!response.ok)throw new Error('Kon nie die O/6 scoring engine laai nie ('+response.status+').');
     let html=await response.text();
-    const base='<base href="'+location.origin+'/">';
-    html=html.replace('</head>',base+'</head>');
-    const supabase='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"><\\/script>';
+    html=html.replace('<head>','<head><base href="'+location.origin+'/">');
     const marker='<script>';
     const pos=html.indexOf(marker);
     if(pos<0)throw new Error('O/6 scoring engine script kon nie gevind word nie.');
+    const supabase='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>';
     html=html.slice(0,pos)+supabase+html.slice(pos);
-    const blob=new Blob([html],{type:'text/html'});
-    const url=URL.createObjectURL(blob);
-    const frame=document.createElement('iframe');
-    frame.title='Junior Krieket – O/6 Telkaart';
-    frame.src=url+'?match='+encodeURIComponent(id)+'&v=33';
-    document.body.innerHTML='';
-    document.body.appendChild(frame);
-    frame.addEventListener('load',()=>URL.revokeObjectURL(url),{once:true});
+    document.open();
+    document.write(html);
+    document.close();
   }catch(e){
     document.body.innerHTML='<div style="padding:24px;font-family:system-ui,sans-serif;color:#b42318;background:#fff0f0;border:1px solid #f3b4b4;border-radius:12px;margin:20px">'+String(e.message||e).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))+'</div>';
   }
