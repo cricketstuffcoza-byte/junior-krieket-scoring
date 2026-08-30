@@ -48,7 +48,6 @@ jobs:
           s = s.replace("if(overEnded)showScoreOrBowler();else show('scoreCard')", "if(overEnded){showScoreOrBowler()}else show('scoreCard')", 1)
 
           # O/8 league rule: a batter retires once they reach 15 runs OR 15 balls.
-          # Retirement is not a wicket and does not increase the wicket count.
           s = s.replace(
               "function ps(id){return state.stats[id]||(state.stats[id]={runs:0,balls:0,fours:0,sixes:0,out:null})}",
               "function ps(id){return state.stats[id]||(state.stats[id]={runs:0,balls:0,fours:0,sixes:0,out:null,retiredReason:null})}"
@@ -70,32 +69,30 @@ jobs:
           new_ui = "else if((i.striker===null)!==(i.non===null)){replacementSlot=i.striker===null?'striker':'non';$('newReason').textContent='Die kolwer het die 15-limiet bereik en tree af. Kies die een nuwe kolwer.';show('newBatterCard');newBatterChoices()}else{selectedBat=[];show('batSelect');batChoices()}"
           s = s.replace(old_ui, new_ui)
 
-          # Replace the normal run route so retirement is checked before the
-          # scorer decides whether to show the scoring controls or next bowler.
           pattern = r"async function run\(r\)\{.*?\}function showScoreOrBowler\(\)\{"
           replacement = """async function run(r){const i=cur();if(!i.striker||!i.non||!i.bowler)return;checkpoint();const s=ps(i.striker),b=bs(i.bowler);i.runs+=r;i.balls++;i.overBalls++;s.runs+=r;s.balls++;b.balls++;b.runs+=r;if(r===4)s.fours++;if(r===6)s.sixes++;state.log.push({ball:i.overs+'.'+i.overBalls,text:pname(i.striker)+' '+r});if(r%2)[i.striker,i.non]=[i.non,i.striker];const overEnded=endBallIfNeeded();const retired=retireEligibleBatter();render();await save();if(retired){replacementSlot=i.striker===null?'striker':'non';pendingNew=null;$('newReason').textContent='Die kolwer het '+retired.reason+' bereik en tree af. Kies die een nuwe kolwer.';show('newBatterCard');newBatterChoices();return}if(overEnded){showScoreOrBowler()}else show('scoreCard')}function showScoreOrBowler(){"""
           s, n = re.subn(pattern, replacement, s, count=1, flags=re.S)
           if n != 1:
               raise SystemExit('Could not patch run()')
 
-          # Wides/no-balls also go through the retirement check. The scorer's
-          # existing custom rule that they count as a ball is preserved.
           s = s.replace(
               "const overEnded=endBallIfNeeded();hide('eventCard');render();await save();if(event.out&&i.balls<80&&i.wickets<10){",
               "const overEnded=endBallIfNeeded();const retired=event.out?null:retireEligibleBatter();hide('eventCard');render();await save();if(retired){replacementSlot=i.striker===null?'striker':'non';pendingNew=null;$('newReason').textContent='Die kolwer het '+retired.reason+' bereik en tree af. Kies die een nuwe kolwer.';show('newBatterCard');newBatterChoices()}else if(event.out&&i.balls<80&&i.wickets<10){"
           )
 
-          # BYE/LEG-BYE are legal balls and can also trigger the limit.
           old_extra = "const oe=endBallIfNeeded();hide('eventCard');render();await save();if(oe)showScoreOrBowler();else show('scoreCard')"
           new_extra = "const oe=endBallIfNeeded();const retired=retireEligibleBatter();hide('eventCard');render();await save();if(retired){replacementSlot=i.striker===null?'striker':'non';pendingNew=null;$('newReason').textContent='Die kolwer het '+retired.reason+' bereik en tree af. Kies die een nuwe kolwer.';show('newBatterCard');newBatterChoices()}else if(oe)showScoreOrBowler();else show('scoreCard')"
           s = s.replace(old_extra, new_extra, 1)
 
-          # Resume protection: if an existing live match already has a batter
-          # above a limit, retire that batter immediately instead of leaving the
-          # scorer in an impossible state.
           old_boot = "if(live?.state_json){state=live.state_json;state.undoStack=state.undoStack||[];ui()}"
           new_boot = "if(live?.state_json){state=live.state_json;state.undoStack=state.undoStack||[];if(!state.stats)state.stats={};if(!state.bowlStats)state.bowlStats={};players.forEach(p=>{if(!state.stats[p.id])state.stats[p.id]={runs:0,balls:0,fours:0,sixes:0,out:null,retiredReason:null};if(!state.bowlStats[p.id])state.bowlStats[p.id]={balls:0,runs:0,wides:0,noballs:0,wickets:0,catches:0,runouts:0}});const ri=cur();if(ri){ri.retired=ri.retired||[];const rr=retireEligibleBatter();if(rr){replacementSlot=ri.striker===null?'striker':'non';pendingNew=null}}ui()}"
           s = s.replace(old_boot, new_boot, 1)
+
+          # Idempotence cleanup: older runs of this workflow could have added
+          # duplicate adjacent calls. Collapse them so Undo remains one-click.
+          s = re.sub(r"(?:checkpoint\(\);)+", "checkpoint();", s)
+          s = re.sub(r"(?:renderUndo\(\);)+(?=\$\('log'\.innerHTML)", "renderUndo();", s)
+          s = re.sub(r"(?:\$\('undo'\)\.onclick=undoLast;)+", "$('undo').onclick=undoLast;", s)
 
           p.write_text(s, encoding='utf-8')
           print('patched scorer-fixed.html')
@@ -110,5 +107,5 @@ jobs:
             echo "No scorer change needed"
             exit 0
           fi
-          git commit -m "Add O8 retirement rule and reliable scorer flow"
+          git commit -m "Make O8 scorer patch idempotent"
           git push
