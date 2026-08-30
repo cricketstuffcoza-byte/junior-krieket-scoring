@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="af">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Junior Krieket – Alpha & Omega U/6 V18</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+body{margin:0;background:#eef2f6;font-family:system-ui,sans-serif;color:#172033}.bar{max-width:1120px;margin:auto;padding:12px 18px}.card{background:#fff;border-radius:16px;padding:14px 18px;margin:10px 0;box-shadow:0 2px 12px #0001}.hidden{display:none!important}.error{color:#b42318;background:#fff3f2;border:1px solid #efc0bd}.scoreframe{width:100%;height:calc(100vh - 40px);min-height:860px;border:0;border-radius:16px;background:#fff}
+</style>
+</head>
+<body>
+<div class="bar"><div id="error" class="card error hidden"></div><iframe id="frame" class="scoreframe hidden" title="Junior Krieket Alpha & Omega U/6 V18"></iframe></div>
+<script>
+'use strict';
+const SUPABASE_URL='https://moomommajyldjquncnrd.supabase.co';
+const SUPABASE_KEY='sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH';
+const BASE_URL='https://raw.githubusercontent.com/cricketstuffcoza-byte/junior-krieket-scoring/o6-alpha-omega/Telkaart-O6-ALPHA-OMEGA-V16.html';
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=id=>document.getElementById(id);
+function fail(e){const x=$("error");x.textContent=e?.message||String(e)||'Kon Alpha & Omega U/6 V18 nie laai nie.';x.classList.remove('hidden')}
+async function init(){
+  const matchId=new URLSearchParams(location.search).get('match');
+  if(!matchId)throw Error('Geen wedstryd-ID ontvang nie.');
+  const q=await db.from('matches').select('id,team_a_id,team_b_id,match_date,match_time,venue,age_group').eq('id',matchId).maybeSingle();
+  if(q.error)throw q.error;if(!q.data)throw Error('Die wedstryd kon nie gevind word nie.');
+  const match=q.data;const age=String(match.age_group||'').toUpperCase().replace('O/','U/');
+  if(age!=='U/6')throw Error('Hierdie V18-telkaart is slegs vir U/6 wedstryde.');
+  const ids=[match.team_a_id,match.team_b_id].filter(Boolean);
+  const tr=await db.from('teams').select('id,name').in('id',ids);if(tr.error)throw tr.error;
+  const teamMap=Object.fromEntries((tr.data||[]).map(t=>[t.id,t.name]));
+  const teamA=teamMap[match.team_a_id]||'Span A',teamB=teamMap[match.team_b_id]||'Span B';
+  const mp=await db.from('match_players').select('player_id,team_id,players(first_name,surname)').eq('match_id',matchId);if(mp.error)throw mp.error;
+  const players={};players[teamA]=(mp.data||[]).filter(x=>x.team_id===match.team_a_id&&x.players).map(x=>[x.players.first_name,x.players.surname].filter(Boolean).join(' '));players[teamB]=(mp.data||[]).filter(x=>x.team_id===match.team_b_id&&x.players).map(x=>[x.players.first_name,x.players.surname].filter(Boolean).join(' '));
+  if(players[teamA].length<2||players[teamB].length<2)throw Error('Die wedstryd se spelers kon nie volledig gelaai word nie.');
+  const response=await fetch(BASE_URL,{cache:'no-store'});if(!response.ok)throw Error('Die bewaarde Alpha & Omega V16 kon nie gelaai word nie ('+response.status+').');
+  let html=await response.text();
+  const safeMatch={teamA:teamA,teamB:teamB,group:'U/6',date:match.match_date||'',time:String(match.match_time||'').slice(0,5),venue:match.venue||''};
+  html=html.replace(/const MATCH=\{[^;]*\};/,'const MATCH='+JSON.stringify(safeMatch)+';');
+  html=html.replace(/const PLAYERS=\{[\s\S]*?\n\};/,'const PLAYERS='+JSON.stringify(players)+';');
+  html=html.replace('Plaaslike toetsweergawe • wedstrydinstellings is deur Admin vooraf bepaal','Alpha & Omega U/6 V18 • wedstrydinstellings is deur Admin vooraf bepaal');
+  const enhancement=''
++ '<style>'
++ '#v18PresenceModal,#v18RunoutModal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:18px;z-index:9999}'
++ '#v18PresenceModal.hidden,#v18RunoutModal.hidden{display:none!important}'
++ '.v18box{background:#fff;border-radius:18px;padding:22px;width:min(900px,100%);max-height:90vh;overflow:auto;box-shadow:0 10px 35px #0005}'
++ '.v18teams{display:grid;grid-template-columns:1fr 1fr;gap:18px}.v18team{border:1px solid #dce2e8;border-radius:14px;padding:15px}.v18player{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid #e8ebef}.v18player:last-child{border-bottom:0}.v18player input{width:18px;height:18px}.v18count{font-size:13px;color:#667085;margin-top:8px}.v18actions{display:flex;justify-content:flex-end;gap:9px;margin-top:16px}.v18primary{background:#172033;color:#fff;border:0;border-radius:10px;padding:12px 16px;font-weight:900;cursor:pointer}.v18secondary{background:#eef2f6;border:0;border-radius:10px;padding:12px 16px;font-weight:900;cursor:pointer}.v18choice{display:block;width:100%;margin:8px 0}'
++ '@media(max-width:700px){.v18teams{grid-template-columns:1fr}}'
++ '</style>'
++ '<div id="v18PresenceModal" class="hidden"><div class="v18box"><h2>👥 Bevestig teenwoordige spelers</h2><p>Bevestig asseblief watter spelers van <strong>'+teamA+'</strong> en <strong>'+teamB+'</strong> vandag teenwoordig is. Spelers wat nie teenwoordig is nie, kan ontmerk word.</p><div class="v18teams"><div class="v18team"><h3>'+teamA+'</h3><div id="v18PresenceA"></div><div id="v18PresenceACount" class="v18count"></div></div><div class="v18team"><h3>'+teamB+'</h3><div id="v18PresenceB"></div><div id="v18PresenceBCount" class="v18count"></div></div></div><div id="v18PresenceError" style="color:#b42318;font-weight:800;margin-top:12px"></div><div class="v18actions"><button id="v18ConfirmPresence" class="v18primary" type="button">BEVESTIG EN BEGIN</button></div></div></div>'
++ '<div id="v18RunoutModal" class="hidden"><div class="v18box" style="max-width:620px"><h2>🔴 RUN OUT</h2><p>Kies eers <strong>watter kolwer uit is</strong>. Daarna kies ons die betrokke veldwerker.</p><div id="v18RunoutChoices"></div><div class="v18actions"><button id="v18CancelRunout" class="v18secondary" type="button">KANSELLEER</button></div></div></div>'
++ '<script>(function(){\n'
++ '"use strict";\n'
++ 'var presence={A:'+JSON.stringify(players[teamA])+',B:'+JSON.stringify(players[teamB])+'};\n'
++ 'var presenceDone=false;\n'
++ 'function e(id){return document.getElementById(id)}\n'
++ 'function esc(v){return String(v==null?"":v).replace(/[&<>\"\']/g,function(m){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","\'":"&#39;"}[m]})}\n'
++ 'function renderPresence(){var a=e("v18PresenceA"),b=e("v18PresenceB");a.innerHTML=presence.A.map(function(n,i){return "<label class=\\"v18player\\"><input type=\\"checkbox\\" data-team=\\"A\\" data-index=\\""+i+"\\" checked> "+esc(n)+"</label>"}).join("");b.innerHTML=presence.B.map(function(n,i){return "<label class=\\"v18player\\"><input type=\\"checkbox\\" data-team=\\"B\\" data-index=\\""+i+"\\" checked> "+esc(n)+"</label>"}).join("");updateCounts()}\n'
++ 'function updateCounts(){e("v18PresenceACount").textContent=e("v18PresenceA").querySelectorAll("input:checked").length+" teenwoordig";e("v18PresenceBCount").textContent=e("v18PresenceB").querySelectorAll("input:checked").length+" teenwoordig"}\n'
++ 'function selected(g){return Array.prototype.map.call(e("v18Presence"+g).querySelectorAll("input:checked"),function(x){return presence[g][Number(x.getAttribute("data-index"))]}).filter(Boolean)}\n'
++ 'function showPresence(){renderPresence();e("v18PresenceError").textContent="";e("v18PresenceModal").classList.remove("hidden")}\n'
++ 'e("v18PresenceA").addEventListener("change",updateCounts);e("v18PresenceB").addEventListener("change",updateCounts);\n'
++ 'e("v18ConfirmPresence").addEventListener("click",function(){var a=selected("A"),b=selected("B");if(a.length<2||b.length<2){e("v18PresenceError").textContent="Elke span moet minstens 2 teenwoordige spelers hê.";return}PLAYERS[MATCH.teamA].splice.apply(PLAYERS[MATCH.teamA],[0,PLAYERS[MATCH.teamA].length].concat(a));PLAYERS[MATCH.teamB].splice.apply(PLAYERS[MATCH.teamB],[0,PLAYERS[MATCH.teamB].length].concat(b));presenceDone=true;e("v18PresenceModal").classList.add("hidden");document.getElementById("start").click()});\n'
++ 'e("start").addEventListener("click",function(ev){if(presenceDone)return;ev.preventDefault();ev.stopImmediatePropagation();showPresence()},true);\n'
++ 'function showRunout(){var c=[];if(state.striker)c.push(state.striker);if(state.nonStriker&&state.nonStriker!==state.striker)c.push(state.nonStriker);e("v18RunoutChoices").innerHTML=c.map(function(n,i){return "<button type=\\"button\\" class=\\"v18primary v18choice\\" data-v18-batter=\\""+i+"\\">"+esc(n)+"</button>"}).join("");e("v18RunoutModal").classList.remove("hidden")}\n'
++ 'e("v18CancelRunout").addEventListener("click",function(){e("v18RunoutModal").classList.add("hidden");state.dismissalType=null;state.pendingDismissal=false;state.pendingRunOutBatter=null;render()});\n'
++ 'e("v18RunoutChoices").addEventListener("click",function(ev){var b=ev.target.closest("button[data-v18-batter]");if(!b)return;var list=[];if(state.striker)list.push(state.striker);if(state.nonStriker&&state.nonStriker!==state.striker)list.push(state.nonStriker);state.pendingRunOutBatter=list[Number(b.getAttribute("data-v18-batter"))]||null;e("v18RunoutModal").classList.add("hidden");if(state.pendingRunOutBatter)openFielderChooser("RUN_OUT")});\n'
++ 'e("wicketPanel").addEventListener("click",function(ev){var b=ev.target.closest("button");if(!b||b.textContent.trim()!=="RUN OUT")return;ev.preventDefault();ev.stopImmediatePropagation();state.pendingDismissal=false;state.dismissalType="RUN_OUT";state.pendingRunOutBatter=null;showRunout()},true);\n'
++ 'e("confirmFielder").addEventListener("click",function(ev){if(state.dismissalType!=="RUN_OUT"||!state.pendingRunOutBatter)return;ev.preventDefault();ev.stopImmediatePropagation();if(!state.selectedFielder)return;var target=state.pendingRunOutBatter;var fromCoach=!!state.pendingCoachWicket;if(target!==state.striker)[state.striker,state.nonStriker]=[state.nonStriker,state.striker];var f=state.bats[state.selectedFielder];if(f)f.runOuts++;state.pendingFielder=false;state.pendingCoachWicket=false;state.pendingRunOutBatter=null;state.dismissalType=null;e("fielderPanel").classList.add("hidden");legal(0,fromCoach?"COACH WICKET":"WICKET",true,"RUN_OUT");render()},true);\n'
++ '})();<\/script>';
+  html=html.replace('</body>',enhancement+'</body>');
+  const f=$("frame");f.src=URL.createObjectURL(new Blob([html],{type:'text/html'}));f.classList.remove('hidden');
+}
+init().catch(fail);
+</script>
+</body>
+</html>
