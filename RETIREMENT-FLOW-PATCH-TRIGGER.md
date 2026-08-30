@@ -1,1 +1,0 @@
-Temporary trigger for the retirement-flow patch workflow. This file is safe to remove after the automated patch runs.
