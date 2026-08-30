@@ -1,42 +1,20 @@
 <!doctype html>
-<html lang="af">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Junior Krieket – O/8 T80 Alpha & Omega V4</title>
-<style>html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#eef2f6}iframe{display:block;width:100%;height:100%;height:100dvh;border:0}</style>
-</head>
-<body>
-<iframe id="scorecard" title="O/8 T80 V4"></iframe>
-<script>
+<html lang="af"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Junior Krieket – O/8 T80 Alpha & Omega V4</title><style>html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#eef2f6}iframe{display:block;width:100%;height:100%;height:100dvh;border:0}</style></head><body><iframe id="scorecard" title="O/8 T80 V4"></iframe><script>
 'use strict';
 const frame=document.getElementById('scorecard');
 frame.src='./Telkaart-O8-ALPHA-OMEGA-V2.html'+(window.location.search||'')+(window.location.hash||'');
 frame.addEventListener('load',()=>{
-  const w=frame.contentWindow,d=w.document;
-  try{
-    const score=d.getElementById('scoreCard');
-    if(!score)return;
-    const wide=d.getElementById('wide'),nb=d.getElementById('noball'),wicket=d.getElementById('wicket');
-    if(wide)wide.textContent='WIDE';if(nb)nb.textContent='NO-BALL';
-    w.addDelivery=function(kind,runs=0,meta={}){
-      const i=w.current();if(!w.state?.started||!i.striker||!i.non||!i.bowler||i.retirementPending)return;
-      const striker=i.striker,bs=w.bowlStats(i.bowler),ps=w.playerStats(striker);i.balls++;i.overBalls++;ps.balls++;bs.balls++;
-      let teamRuns=0,batRuns=0,label='';
-      if(kind==='RUN'){teamRuns=Math.max(0,Number(runs)||0);i.runs+=teamRuns;bs.runs+=teamRuns;ps.runs+=teamRuns;if(teamRuns===4)ps.fours++;if(teamRuns===6)ps.sixes++;label=`${w.pname(striker)} +${teamRuns}`;if(teamRuns%2)[i.striker,i.non]=[i.non,i.striker];}
-      else if(kind==='WIDE'){const extra=Math.max(0,Number(runs)||0);teamRuns=1+extra;i.runs+=teamRuns;bs.runs+=teamRuns;bs.wides+=teamRuns;label=`WIDE +${teamRuns} (1 + ${extra})`;}
-      else if(kind==='NOBALL'){const extra=Math.max(0,Number(runs)||0);teamRuns=1+extra;i.runs+=teamRuns;bs.runs+=teamRuns;bs.noballs+=teamRuns;if(meta.type==='BAT'){batRuns=extra;ps.runs+=batRuns;if(batRuns===4)ps.fours++;if(batRuns===6)ps.sixes++;if(batRuns%2)[i.striker,i.non]=[i.non,i.striker];}label=`NO-BALL +${teamRuns} (1 + ${meta.type==='BAT'?'bat '+extra:meta.type==='BYE'?'bye '+extra:'leg-bye '+extra})`;}
-      else if(kind==='BYE'||kind==='LEG_BYE'){teamRuns=Math.max(0,Number(runs)||0);i.runs+=teamRuns;label=kind==='BYE'?`BYE +${teamRuns}`:`LEG-BYE +${teamRuns}`;if(teamRuns%2)[i.striker,i.non]=[i.non,i.striker];}
-      w.state.log.push({ball:`${i.overs}.${i.overBalls}`,text:label});w.render();w.endDelivery();
-    };
-    const num=(title,def='1')=>{const v=w.prompt(title,def);if(v===null)return null;const n=Number(v);return Number.isFinite(n)&&n>=0?Math.floor(n):null;};
-    if(wide)wide.onclick=()=>{const n=num('Hoeveel ekstra wide-lopies was daar NA die aanvanklike wide?','0');if(n!==null)w.addDelivery('WIDE',n)};
-    if(nb)nb.onclick=()=>{const x=w.prompt('NO-BALL: tik BAT, BYE of LEG-BYE','BAT');if(x===null)return;const t=x.trim().toUpperCase();if(!['BAT','BYE','LEG-BYE'].includes(t)){w.alert('Kies BAT, BYE of LEG-BYE.');return;}const n=num('Hoeveel lopies was daar NA die no-ball ekstra 1?','0');if(n!==null)w.addDelivery('NOBALL',n,{type:t});};
-    const by=d.createElement('button');by.id='bye';by.className='extra';by.textContent='BYE';const lb=d.createElement('button');lb.id='legbye';lb.className='extra';lb.textContent='LEG-BYE';
-    by.onclick=()=>{const n=num('Hoeveel bye-lopies?','1');if(n!==null)w.addDelivery('BYE',n)};lb.onclick=()=>{const n=num('Hoeveel leg-bye-lopies?','1');if(n!==null)w.addDelivery('LEG_BYE',n)};
-    if(wicket)score.querySelector('.score')?.insertBefore(by,wicket),score.querySelector('.score')?.insertBefore(lb,wicket);
-  }catch(e){console.error('O/8 V4 injection error',e)}
+ const w=frame.contentWindow,d=frame.contentDocument||frame.contentWindow.document;
+ try{
+  const loading=d.getElementById('loading'),error=d.getElementById('error'),app=d.getElementById('app'),setup=d.getElementById('setup');
+  if(error&&!error.classList.contains('hidden')){if(typeof w.initState==='function')w.initState();error.classList.add('hidden');if(loading)loading.classList.add('hidden');if(app)app.classList.remove('hidden');if(setup)setup.classList.remove('hidden');}
+  const score=d.getElementById('scoreCard'),wide=d.getElementById('wide'),nb=d.getElementById('noball'),wicket=d.getElementById('wicket');if(!score)return;
+  if(wide)wide.textContent='WIDE';if(nb)nb.textContent='NO-BALL';
+  w.addDelivery=function(kind,runs=0,meta={}){const i=typeof w.current==='function'?w.current():null;if(!i||!w.state?.started||!i.striker||!i.non||!i.bowler||i.retirementPending)return;const striker=i.striker,bs=w.bowlStats(i.bowler),ps=w.playerStats(striker);i.balls++;i.overBalls++;ps.balls++;bs.balls++;let teamRuns=0,label='';if(kind==='RUN'){teamRuns=Math.max(0,Number(runs)||0);i.runs+=teamRuns;bs.runs+=teamRuns;ps.runs+=teamRuns;if(teamRuns===4)ps.fours++;if(teamRuns===6)ps.sixes++;label=`${w.pname(striker)} +${teamRuns}`;if(teamRuns%2)[i.striker,i.non]=[i.non,i.striker]}else if(kind==='WIDE'){const extra=Math.max(0,Number(runs)||0);teamRuns=1+extra;i.runs+=teamRuns;bs.runs+=teamRuns;bs.wides+=teamRuns;label=`WIDE +${teamRuns} (1 + ${extra})`}else if(kind==='NOBALL'){const extra=Math.max(0,Number(runs)||0);teamRuns=1+extra;i.runs+=teamRuns;bs.runs+=teamRuns;bs.noballs+=teamRuns;if(meta.type==='BAT'){ps.runs+=extra;if(extra===4)ps.fours++;if(extra===6)ps.sixes++;if(extra%2)[i.striker,i.non]=[i.non,i.striker]}label=`NO-BALL +${teamRuns} (1 + ${meta.type==='BAT'?'bat '+extra:meta.type==='BYE'?'bye '+extra:'leg-bye '+extra})`}else if(kind==='BYE'||kind==='LEG_BYE'){teamRuns=Math.max(0,Number(runs)||0);i.runs+=teamRuns;label=kind==='BYE'?`BYE +${teamRuns}`:`LEG-BYE +${teamRuns}`;if(teamRuns%2)[i.striker,i.non]=[i.non,i.striker]}w.state.log.push({ball:`${i.overs}.${i.overBalls}`,text:label});w.render();w.endDelivery()};
+  function inputNumber(title,def='1'){const v=w.prompt(title,def);if(v===null)return null;const n=Number(v);if(!Number.isFinite(n)||n<0)return null;return Math.floor(n)}
+  if(wide)wide.onclick=()=>{const n=inputNumber('Hoeveel ekstra wide-lopies was daar NA die aanvanklike wide?','0');if(n!==null)w.addDelivery('WIDE',n)};
+  if(nb)nb.onclick=()=>{const type=w.prompt('NO-BALL: tik BAT, BYE of LEG-BYE','BAT');if(type===null)return;const t=type.trim().toUpperCase();if(!['BAT','BYE','LEG-BYE'].includes(t)){w.alert('Kies BAT, BYE of LEG-BYE.');return}const n=inputNumber('Hoeveel lopies was daar NA die no-ball ekstra 1?','0');if(n!==null)w.addDelivery('NOBALL',n,{type:t})};
+  const by=d.createElement('button');by.id='bye';by.className='extra';by.textContent='BYE';const lb=d.createElement('button');lb.id='legbye';lb.className='extra';lb.textContent='LEG-BYE';by.onclick=()=>{const n=inputNumber('Hoeveel bye-lopies?','1');if(n!==null)w.addDelivery('BYE',n)};lb.onclick=()=>{const n=inputNumber('Hoeveel leg-bye-lopies?','1');if(n!==null)w.addDelivery('LEG_BYE',n)};if(wicket&&score.querySelector('.score')){score.querySelector('.score').insertBefore(by,wicket);score.querySelector('.score').insertBefore(lb,wicket)}
+ }catch(e){console.error('O/8 V4 injection error',e)}
 });
-</script>
-</body>
-</html>
+</script></body></html>
