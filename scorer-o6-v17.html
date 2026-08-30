@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="af">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Junior Krieket – Alpha & Omega U/6 V17</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+body{margin:0;background:#eef2f6;font-family:system-ui,sans-serif;color:#172033}.bar{max-width:1120px;margin:auto;padding:12px 18px}.card{background:#fff;border-radius:16px;padding:14px 18px;margin:10px 0;box-shadow:0 2px 12px #0001}.hidden{display:none!important}.error{color:#b42318;background:#fff3f2}.scoreframe{width:100%;height:calc(100vh - 40px);min-height:860px;border:0;border-radius:16px;background:#fff}
+</style>
+</head>
+<body>
+<div class="bar"><div id="error" class="card error hidden"></div><iframe id="frame" class="scoreframe hidden" title="Junior Krieket Alpha & Omega U/6 V17"></iframe></div>
+<script>
+'use strict';
+const SUPABASE_URL='https://moomommajyldjquncnrd.supabase.co';
+const SUPABASE_KEY='sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH';
+const BASE_URL='https://raw.githubusercontent.com/cricketstuffcoza-byte/junior-krieket-scoring/o6-alpha-omega/Telkaart-O6-ALPHA-OMEGA-V16.html';
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=id=>document.getElementById(id);
+function fail(e){const x=$("error");x.textContent=e?.message||String(e)||'Kon Alpha & Omega U/6 V17 nie laai nie.';x.classList.remove('hidden')}
+async function init(){
+ const matchId=new URLSearchParams(location.search).get('match');
+ if(!matchId)throw Error('Geen wedstryd-ID ontvang nie.');
+ const {data:match,error:matchError}=await db.from('matches').select('id,fixture_code,team_a_id,team_b_id,match_date,match_time,venue,age_group').eq('id',matchId).maybeSingle();
+ if(matchError)throw matchError;if(!match)throw Error('Die wedstryd kon nie gevind word nie.');
+ const age=String(match.age_group||'').toUpperCase().replace('O/','U/');
+ if(age!=='U/6')throw Error('Hierdie V17-telkaart is slegs vir U/6 wedstryde.');
+ const ids=[match.team_a_id,match.team_b_id].filter(Boolean);
+ const {data:teamRows,error:teamError}=await db.from('teams').select('id,name').in('id',ids);if(teamError)throw teamError;
+ const teamMap=Object.fromEntries((teamRows||[]).map(t=>[t.id,t.name]));
+ const teamA=teamMap[match.team_a_id]||'Span A',teamB=teamMap[match.team_b_id]||'Span B';
+ const {data:mp,error:mpError}=await db.from('match_players').select('player_id,team_id,players(first_name,surname)').eq('match_id',matchId);if(mpError)throw mpError;
+ const players={};players[teamA]=(mp||[]).filter(x=>x.team_id===match.team_a_id&&x.players).map(x=>[x.players.first_name,x.players.surname].filter(Boolean).join(' '));players[teamB]=(mp||[]).filter(x=>x.team_id===match.team_b_id&&x.players).map(x=>[x.players.first_name,x.players.surname].filter(Boolean).join(' '));
+ if(players[teamA].length<2||players[teamB].length<2)throw Error('Die wedstryd se spelers kon nie volledig gelaai word nie.');
+ let response=await fetch(BASE_URL,{cache:'no-store'});if(!response.ok)throw Error('Die bewaarde Alpha & Omega V16 kon nie gelaai word nie ('+response.status+').');
+ let html=await response.text();
+ const safeMatch={teamA,teamB,group:'U/6',date:match.match_date||'',time:String(match.match_time||'').slice(0,5),venue:match.venue||''};
+ html=html.replace(/const MATCH=\{[^;]*\};/,`const MATCH=${JSON.stringify(safeMatch)};`);
+ html=html.replace(/const PLAYERS=\{[\s\S]*?\n\};/,`const PLAYERS=${JSON.stringify(players)};`);
+ html=html.replace('Plaaslike toetsweergawe • wedstrydinstellings is deur Admin vooraf bepaal','Alpha & Omega telkaart V17 • wedstrydinstellings is deur Admin vooraf bepaal');
+ const enhancement=`
+<style>
+#v17PresenceModal,#v17RunoutModal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:18px;z-index:9999}
+#v17PresenceModal.hidden,#v17RunoutModal.hidden{display:none!important}
+.v17box{background:#fff;border-radius:18px;padding:22px;width:min(900px,100%);max-height:90vh;overflow:auto;box-shadow:0 10px 35px #0005}
+.v17teams{display:grid;grid-template-columns:1fr 1fr;gap:18px}.v17team{border:1px solid #dce2e8;border-radius:14px;padding:15px}.v17player{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid #e8ebef}.v17player:last-child{border-bottom:0}.v17player input{width:18px;height:18px}.v17count{font-size:13px;color:#667085;margin-top:8px}.v17actions{display:flex;justify-content:flex-end;gap:9px;margin-top:16px}.v17primary{background:#172033;color:#fff;border:0;border-radius:10px;padding:12px 16px;font-weight:900;cursor:pointer}.v17secondary{background:#eef2f6;border:0;border-radius:10px;padding:12px 16px;font-weight:900;cursor:pointer}@media(max-width:700px){.v17teams{grid-template-columns:1fr}}
+</style>
+<div id="v17PresenceModal" class="hidden"><div class="v17box"><h2>👥 Bevestig teenwoordige spelers</h2><p>Bevestig asseblief watter spelers van <strong>${teamA}</strong> en <strong>${teamB}</strong> vandag teenwoordig is. Spelers wat nie teenwoordig is nie, kan ontmerk word.</p><div class="v17teams"><div class="v17team"><h3>${teamA}</h3><div id="v17PresenceA"></div><div id="v17PresenceACount" class="v17count"></div></div><div class="v17team"><h3>${teamB}</h3><div id="v17PresenceB"></div><div id="v17PresenceBCount" class="v17count"></div></div></div><div id="v17PresenceError" style="color:#b42318;font-weight:800;margin-top:12px"></div><div class="v17actions"><button id="v17ConfirmPresence" class="v17primary" type="button">BEVESTIG EN BEGIN</button></div></div></div>
+<div id="v17RunoutModal" class="hidden"><div class="v17box" style="max-width:620px"><h2>🔴 RUN OUT</h2><p>Kies eers <strong>watter kolwer uit is</strong>. Daarna sal die afrigter die betrokke veldwerker kies.</p><div id="v17RunoutChoices" class="v17teams" style="grid-template-columns:1fr"></div><div class="v17actions"><button id="v17CancelRunout" class="v17secondary" type="button">KANSELLEER</button></div></div></div>
+<script>(function(){
+'use strict';
+const presence={A:${JSON.stringify(players[teamA])},B:${JSON.stringify(players[teamB])}};let presenceDone=false;
+function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function renderPresence(){const a=$('v17PresenceA'),b=$('v17PresenceB');a.innerHTML=presence.A.map((n,i)=>`<label class="v17player"><input type="checkbox" data-team="A" data-index="${i}" checked> ${esc(n)}</label>`).join('');b.innerHTML=presence.B.map((n,i)=>`<label class="v17player"><input type="checkbox" data-team="B" data-index="${i}" checked> ${esc(n)}</label>`).join('');updateCounts()}
+function updateCounts(){const ca=$('v17PresenceA').querySelectorAll('input:checked').length,cb=$('v17PresenceB').querySelectorAll('input:checked').length;$('v17PresenceACount').textContent=ca+' teenwoordig';$('v17PresenceBCount').textContent=cb+' teenwoordig'}
+function showPresence(){renderPresence();$('v17PresenceError').textContent='';$('v17PresenceModal').classList.remove('hidden')}
+function selected(g){return [...$('v17Presence'+g).querySelectorAll('input:checked')].map(x=>presence[g][Number(x.dataset.index)]).filter(Boolean)}
+$('v17PresenceA').addEventListener('change',updateCounts);$('v17PresenceB').addEventListener('change',updateCounts);
+$('v17ConfirmPresence').addEventListener('click',()=>{const a=selected('A'),b=selected('B');if(a.length<2||b.length<2){$('v17PresenceError').textContent='Elke span moet minstens 2 teenwoordige spelers hê.';return}PLAYERS[MATCH.teamA].splice(0,PLAYERS[MATCH.teamA].length,...a);PLAYERS[MATCH.teamB].splice(0,PLAYERS[MATCH.teamB].length,...b);presenceDone=true;$('v17PresenceModal').classList.add('hidden');$('start').click()});
+$('start').addEventListener('click',e=>{if(presenceDone)return;e.preventDefault();e.stopImmediatePropagation();showPresence()},true);
+function showRunout(){const c=[];if(state.striker)c.push(state.striker);if(state.nonStriker&&state.nonStriker!==state.striker)c.push(state.nonStriker);$('v17RunoutChoices').innerHTML=c.map((n,i)=>`<button type="button" class="v17primary" data-v17-batter="${i}">${esc(n)}</button>`).join('');$('v17RunoutModal').classList.remove('hidden')}
+$('v17CancelRunout').addEventListener('click',()=>{$('v17RunoutModal').classList.add('hidden');state.dismissalType=null;state.pendingDismissal=false;state.pendingRunOutBatter=null;render()});
+$('v17RunoutChoices').addEventListener('click',e=>{const b=e.target.closest('button[data-v17-batter]');if(!b)return;const list=[];if(state.striker)list.push(state.striker);if(state.nonStriker&&state.nonStriker!==state.striker)list.push(state.nonStriker);state.pendingRunOutBatter=list[Number(b.dataset.v17Batter)]||null;$('v17RunoutModal').classList.add('hidden');if(state.pendingRunOutBatter)openFielderChooser('RUN_OUT')});
+$('wicketPanel').addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.textContent.trim()!=='RUN OUT')return;e.preventDefault();e.stopImmediatePropagation();state.pendingDismissal=false;state.dismissalType='RUN_OUT';state.pendingRunOutBatter=null;showRunout()},true);
+$('confirmFielder').addEventListener('click',e=>{if(state.dismissalType!=='RUN_OUT'||!state.pendingRunOutBatter)return;e.preventDefault();e.stopImmediatePropagation();if(!state.selectedFielder)return;const target=state.pendingRunOutBatter,fromCoach=!!state.pendingCoachWicket;snapshot();const f=state.bats[state.selectedFielder];if(f)f.runOuts++;if(target!==state.striker)[state.striker,state.nonStriker]=[state.nonStriker,state.striker];state.pendingFielder=false;state.pendingCoachWicket=false;state.pendingRunOutBatter=null;state.dismissalType=null;$('fielderPanel').classList.add('hidden');legal(0,fromCoach?'COACH WICKET':'WICKET',true,'RUN_OUT');const last=state.log[state.log.length-1];if(last)last.runOutBatter=target;render()},true);
+render();
+})();</script>`;
+ html=html.replace('</body>',enhancement+'</body>');
+ const f=$("frame");f.src=URL.createObjectURL(new Blob([html],{type:'text/html'}));f.classList.remove('hidden');
+}
+init().catch(fail);
+</script>
+</body>
+</html>
