@@ -27,7 +27,6 @@ jobs:
           p = Path('scorer-fixed.html')
           s = p.read_text(encoding='utf-8')
 
-          # Add retirement metadata to player stats without breaking old saved state.
           s = s.replace(
               "function ps(id){return state.stats[id]||(state.stats[id]={runs:0,balls:0,fours:0,sixes:0,out:null})}",
               "function ps(id){return state.stats[id]||(state.stats[id]={runs:0,balls:0,fours:0,sixes:0,out:null,retiredReason:null})}"
@@ -37,45 +36,34 @@ jobs:
               "state.stats[p.id]={runs:0,balls:0,fours:0,sixes:0,out:null,retiredReason:null};"
           )
 
-          # Show retired players clearly in the batting table.
           old = "const s=ps(p.id),st=i.out.includes(p.id)?'UIT – '+(s.out||''):i.striker===p.id?'KOLF':i.non===p.id?'NIE-KOLF':'—';"
           new = "const s=ps(p.id),st=i.out.includes(p.id)?'UIT – '+(s.out||''):i.retired.includes(p.id)?'AFTREE – '+(s.retiredReason||'15-limiet') :i.striker===p.id?'KOLF':i.non===p.id?'NIE-KOLF':'—';"
           s = s.replace(old, new)
 
-          # Retirement helper. It is deliberately based on the player's own
-          # runs/balls and never increments wickets.
           marker = "function endBallIfNeeded(){"
-          helper = """function retirementReason(id){const s=ps(id);if(s.runs>=15)return '15 lopies';if(s.balls>=15)return '15 balle';return null}function retireEligibleBatter(){const i=cur();const ids=[i.striker,i.non].filter(Boolean);for(const id of ids){if(i.out.includes(id)||i.retired.includes(id))continue;const reason=retirementReason(id);if(!reason)continue;const s=ps(id);if(!i.retired.includes(id))i.retired.push(id);s.retiredReason=reason;if(i.striker===id)i.striker=null;if(i.non===id)i.non=null;state.log.push({ball:i.overs+'.'+i.overBalls,text:pname(id)+' AFTREE – '+reason});return {id,reason}}return null}function retirementPending(){const i=cur();if(i.striker===null&&!i.non)return null;if(i.striker===null)return 'striker';if(i.non===null)return 'non';return null}"""
+          helper = """function retirementReason(id){const s=ps(id);if(s.runs>=15)return '15 lopies';if(s.balls>=15)return '15 balle';return null}function retireEligibleBatter(){const i=cur();const ids=[i.striker,i.non].filter(Boolean);for(const id of ids){if(i.out.includes(id)||i.retired.includes(id))continue;const reason=retirementReason(id);if(!reason)continue;const s=ps(id);if(!i.retired.includes(id))i.retired.push(id);s.retiredReason=reason;if(i.striker===id)i.striker=null;if(i.non===id)i.non=null;state.log.push({ball:i.overs+'.'+i.overBalls,text:pname(id)+' AFTREE – '+reason});return {id,reason}}return null}function retirementPending(){const i=cur();if(i.striker===null&&!i.non)return null;if(i.striker===null)return 'striker';if(i.non===null)return 'non'}"""
           if "function retirementReason(id)" not in s:
               s = s.replace(marker, helper + marker, 1)
 
-          # Make the UI handle either batting position becoming vacant.
           old_ui = "else if(!i.striker&&i.non){replacementSlot='striker';$('newReason').textContent='Die vorige kolwer is uit. Kies slegs die een nuwe kolwer.';show('newBatterCard');newBatterChoices()}else{selectedBat=[];show('batSelect');batChoices()}"
           new_ui = "else if((i.striker===null)!==(i.non===null)){replacementSlot=i.striker===null?'striker':'non';$('newReason').textContent='Die vorige kolwer het die 15-limiet bereik. Kies die een nuwe kolwer.';show('newBatterCard');newBatterChoices()}else{selectedBat=[];show('batSelect');batChoices()}"
           s = s.replace(old_ui, new_ui)
 
-          # Replace the ordinary run handler so retirement is evaluated after
-          # the ball and before the next control is shown.
           pattern = r"async function run\(r\)\{.*?\}function showScoreOrBowler\(\)\{"
           replacement = """async function run(r){const i=cur();if(!i.striker||!i.non||!i.bowler)return;checkpoint();const s=ps(i.striker),b=bs(i.bowler);i.runs+=r;i.balls++;i.overBalls++;s.runs+=r;s.balls++;b.balls++;b.runs+=r;if(r===4)s.fours++;if(r===6)s.sixes++;state.log.push({ball:i.overs+'.'+i.overBalls,text:pname(i.striker)+' '+r});if(r%2)[i.striker,i.non]=[i.non,i.striker];const overEnded=endBallIfNeeded();const retired=retireEligibleBatter();render();await save();if(retired){replacementSlot=i.striker===null?'striker':'non';pendingNew=null;$('newReason').textContent='Die kolwer het '+retired.reason+' bereik en tree af. Kies die een nuwe kolwer.';show('newBatterCard');newBatterChoices();return}if(overEnded){showScoreOrBowler()}else show('scoreCard')}function showScoreOrBowler(){"""
           s, n = re.subn(pattern, replacement, s, count=1, flags=re.S)
           if n != 1:
               raise SystemExit('Could not patch run()')
 
-          # Add retirement to BYE/LEG-BYE, WIDE and NO-BALL flows too. Wides and
-          # no-balls retain the existing scorer's custom one-ball behaviour.
           s = s.replace(
               "const overEnded=endBallIfNeeded();hide('eventCard');render();await save();if(event.out&&i.balls<80&&i.wickets<10){",
               "const overEnded=endBallIfNeeded();const retired=event.out?null:retireEligibleBatter();hide('eventCard');render();await save();if(retired){replacementSlot=i.striker===null?'striker':'non';pendingNew=null;$('newReason').textContent='Die kolwer het '+retired.reason+' bereik en tree af. Kies die een nuwe kolwer.';show('newBatterCard');newBatterChoices()}else if(event.out&&i.balls<80&&i.wickets<10){"
           )
 
-          # The simple-extra handler is inline; patch its post-ball routing.
           old_extra = "const oe=endBallIfNeeded();hide('eventCard');render();await save();if(oe)showScoreOrBowler();else show('scoreCard')"
           new_extra = "const oe=endBallIfNeeded();const retired=retireEligibleBatter();hide('eventCard');render();await save();if(retired){replacementSlot=i.striker===null?'striker':'non';pendingNew=null;$('newReason').textContent='Die kolwer het '+retired.reason+' bereik en tree af. Kies die een nuwe kolwer.';show('newBatterCard');newBatterChoices()}else if(oe)showScoreOrBowler();else show('scoreCard')"
           s = s.replace(old_extra, new_extra, 1)
 
-          # On loading an old live match, immediately enforce the rule if a
-          # current batter already has >=15 runs or >=15 balls.
           old_boot = "if(live?.state_json){state=live.state_json;state.undoStack=state.undoStack||[];ui()}"
           new_boot = "if(live?.state_json){state=live.state_json;state.undoStack=state.undoStack||[];if(!state.stats)state.stats={};if(!state.bowlStats)state.bowlStats={};players.forEach(p=>{if(!state.stats[p.id])state.stats[p.id]={runs:0,balls:0,fours:0,sixes:0,out:null,retiredReason:null};if(!state.bowlStats[p.id])state.bowlStats[p.id]={balls:0,runs:0,wides:0,noballs:0,wickets:0,catches:0,runouts:0}});const ri=cur();if(ri){ri.retired=ri.retired||[];const r=retireEligibleBatter();if(r){replacementSlot=ri.striker===null?'striker':'non';pendingNew=null}}ui()}"
           s = s.replace(old_boot, new_boot, 1)
@@ -94,4 +82,6 @@ jobs:
             exit 0
           fi
           git commit -m "Enforce O8 15-run and 15-ball retirement"
-          git push
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main
