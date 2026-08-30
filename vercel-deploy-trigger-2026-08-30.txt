@@ -1,0 +1,1 @@
+Trigger deployment after reconnecting the Vercel Git integration.
