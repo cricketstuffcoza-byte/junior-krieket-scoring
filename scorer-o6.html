@@ -1,1 +1,36 @@
-<!doctype html><html lang="af"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Junior Krieket – O/6 Telkaart</title></head><body><script>(function(){const q=new URLSearchParams(location.search);const id=q.get('match');if(!id){document.body.textContent='Geen wedstryd-ID is verskaf nie.';return;}location.replace('scoring-engine-v6.html?match='+encodeURIComponent(id)+'&v=28');})();</script></body></html>
+<!doctype html>
+<html lang="af">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Junior Krieket – O/6 Telkaart</title>
+<style>html,body{margin:0;width:100%;height:100%;background:#eef2f6;font-family:system-ui,sans-serif}iframe{display:block;width:100%;height:100%;border:0}</style>
+</head>
+<body>
+<script>
+(function(){
+  const q=new URLSearchParams(location.search);
+  const id=q.get('match');
+  if(!id){document.body.textContent='Geen wedstryd-ID is verskaf nie.';return;}
+  const frame=document.createElement('iframe');
+  frame.title='Junior Krieket – O/6 Telkaart';
+  frame.src='scoring-engine-v6.html?match='+encodeURIComponent(id)+'&v=29';
+  document.body.appendChild(frame);
+  frame.addEventListener('load',()=>{
+    try{
+      const doc=frame.contentDocument;
+      if(!doc)return;
+      if(!doc.querySelector('script[src*="supabase-js"]')){
+        const lib=doc.createElement('script');
+        lib.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+        lib.onload=()=>{ try{ if(typeof frame.contentWindow.loadMatch==='function'){ frame.contentWindow.loadMatch().catch(e=>console.error('O/6 loadMatch failed',e)); } }catch(e){console.error(e)} };
+        doc.head.appendChild(lib);
+      }else if(typeof frame.contentWindow.loadMatch==='function'){
+        frame.contentWindow.loadMatch().catch(e=>console.error('O/6 loadMatch failed',e));
+      }
+    }catch(e){console.error('O/6 bootstrap failed',e)}
+  });
+})();
+</script>
+</body>
+</html>
