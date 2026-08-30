@@ -13,64 +13,45 @@
   <iframe id="portal" class="frame" src="coach-v24.html" title="Afrigter Portaal V25"></iframe>
 </div>
 <script>
+'use strict';
 const frame=document.getElementById('portal');
+const SB='https://moomommajyldjquncnrd.supabase.co';
+const KEY='sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH';
+
+async function openCorrectScorecard(matchId){
+  const id=String(matchId||'').trim();
+  if(!id)return;
+  try{
+    const r=await fetch(`${SB}/rest/v1/matches?select=age_group&id=eq.${encodeURIComponent(id)}`,{headers:{apikey:KEY,Accept:'application/json'},cache:'no-store'});
+    if(!r.ok)throw Error('Kon nie die ouderdomsgroep van die wedstryd bepaal nie.');
+    const rows=await r.json();
+    const age=String(rows?.[0]?.age_group||'').toUpperCase().replace(/\s/g,'');
+    // O/6 and U/6 MUST use the original Alpha & Omega scorecard chain.
+    // scorer-phase1 -> scorer.html -> scorer-o6 -> scorer-v5 (Alpha & Omega).
+    // O/8/U/8 use the O/8 T80 scorer.
+    const scorer=(age==='O/6'||age==='U/6')?'scorer-phase1.html':'scorer-fixed.html';
+    window.location.href=`${scorer}?match=${encodeURIComponent(id)}&v=38`;
+  }catch(e){
+    alert(e?.message||'Kon nie die korrekte telkaart oopmaak nie.');
+  }
+}
+
 frame.addEventListener('load',()=>{
   try{
     const doc=frame.contentDocument;
-    const style=doc.createElement('style');
-    style.textContent=`
-      *{box-sizing:border-box}
-      html,body{margin:0!important;background:#eef2f6!important;color:#172033;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-      #auth,#denied{max-width:1180px;margin:18px auto!important;background:#fff;border-radius:18px;padding:20px!important;box-shadow:0 3px 16px #0001!important}
-      #auth h1{margin:0 0 6px!important;font-size:30px!important}
-      #auth h2{margin:0 0 18px!important;color:#667085!important;font-size:18px!important}
-      #authMsg{font-size:13px!important;color:#667085}
-      #loginForm{display:grid!important;grid-template-columns:1fr 1fr!important;gap:14px!important;align-items:end!important}
-      #loginForm input{width:100%!important;padding:12px 13px!important;border:1px solid #d7dde4!important;border-radius:10px!important;font:inherit!important;background:#fff!important}
-      #loginButton,#logout,#refresh,#back{border:0!important;border-radius:11px!important;padding:11px 15px!important;font-weight:800!important;cursor:pointer!important}
-      #loginButton{background:#172033!important;color:#fff!important}
-      #app{max-width:1180px;margin:18px auto!important;position:relative!important}
-      #app>h1{background:#172033!important;color:#fff!important;margin:0!important;padding:22px 24px 7px!important;border-radius:18px 18px 0 0!important;font-size:28px!important}
-      #welcome{background:#172033!important;color:#d5deea!important;margin:0!important;padding:0 24px 22px!important}
-      #logout{position:absolute!important;top:20px!important;right:20px!important;background:#eef2f6!important;color:#172033!important}
-      #app>section{background:#fff!important;border-radius:18px!important;padding:20px!important;margin:14px 0!important;box-shadow:0 3px 16px #0001!important}
-      #app section h2{margin:0 0 14px!important;font-size:22px!important}
-      #app>section>p{color:#667085!important}
-      #teams,#players{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important}
-      #teams>div,#players>div,#coaches>div,#fixtures>div{border:1px solid #e4e7ec!important;border-radius:14px!important;padding:15px!important;background:#fff!important}
-      #teams>div{min-height:76px!important;display:flex!important;flex-direction:column!important;justify-content:center!important}
-      #players>div{min-height:86px!important;transition:box-shadow .15s,transform .15s!important}
-      #players>div:hover{box-shadow:0 4px 14px #0001!important;transform:translateY(-1px)!important}
-      #players>div b{display:block!important;font-size:16px!important;margin-bottom:6px!important}
-      #coaches>div{margin:8px 0!important}
-      #fixtures>div{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:14px!important;flex-wrap:wrap!important;margin:8px 0!important}
-      #fixtures>div button{background:#172033!important;color:#fff!important;border:0!important;border-radius:11px!important;padding:11px 15px!important;font-weight:800!important;cursor:pointer!important}
-      #refresh{background:#eef2f6!important;color:#172033!important;float:right!important}
-      #reports:empty{display:none!important}
-      @media(max-width:800px){#loginForm{grid-template-columns:1fr!important}#teams,#players{grid-template-columns:1fr!important}}
-    `;
-    doc.head.appendChild(style);
-
-    // IMPORTANT: never hard-code one scorecard. Resolve the match age first,
-    // then send O/6/U/6 to Phase 1 and O/8/U/8 to the correct O/8 T80 scorer.
-    const SB='https://moomommajyldjquncnrd.supabase.co';
-    const KEY='sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH';
-    const originalFetch=window.fetch;
-    doc.defaultView.openScorer=async function(id){
-      const mid=String(id||'').trim();
-      if(!mid)return;
-      try{
-        const r=await originalFetch(`${SB}/rest/v1/matches?select=age_group&id=eq.${encodeURIComponent(mid)}`,{headers:{apikey:KEY,Accept:'application/json'}});
-        const rows=await r.json();
-        const age=String(rows?.[0]?.age_group||'').toUpperCase();
-        const scorer=(age.includes('U/6')||age.includes('O/6'))?'scorer-phase1.html':'scorer-fixed.html';
-        doc.defaultView.location.href=`${scorer}?match=${encodeURIComponent(mid)}&v=26`;
-      }catch(e){
-        // Do not silently send the user to a wrong scorecard if the match cannot be resolved.
-        alert('Kon nie die ouderdomsgroep van hierdie wedstryd bepaal nie. Maak asseblief die wedstryd weer oop.');
-      }
-    };
-  }catch(e){console.error('Coach Portal styling/routing failed',e)}
+    // Capture the click BEFORE coach-v24's old inline onclick can send the
+    // browser to scorer-fixed.html. This leaves the existing coach portal intact.
+    doc.addEventListener('click',e=>{
+      const btn=e.target?.closest?.('button[onclick*="openScorer"]');
+      if(!btn)return;
+      const m=String(btn.getAttribute('onclick')||'').match(/openScorer\(['"]([^'"]+)['"]/);
+      if(!m)return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      openCorrectScorecard(m[1]);
+    },true);
+  }catch(e){console.error('Coach scorecard routing install failed',e)}
 });
 </script>
-</body></html>
+</body>
+</html>
