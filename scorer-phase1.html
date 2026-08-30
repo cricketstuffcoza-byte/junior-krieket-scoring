@@ -2,21 +2,41 @@
 <html lang="af">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Junior Krieket – Fase 1 Telkaart</title>
 <style>
-html,body{margin:0;padding:0;background:#eef2f6;font-family:system-ui,sans-serif}
-#boot{max-width:760px;margin:12vh auto;padding:24px;background:#fff;border-radius:18px}
+html,body{margin:0;padding:0;width:100%;height:100%;background:#eef2f6}
+#frame{display:block;width:100%;height:100vh;border:0}
+#boot{font-family:system-ui,sans-serif;max-width:760px;margin:12vh auto;padding:24px;background:#fff;border-radius:18px}
+.err{color:#b42318}
 </style>
 </head>
 <body>
-<div id="boot">Laai Fase 1 telkaart…</div>
+<div id="boot"><p id="m">Laai Fase 1 telkaart…</p></div>
 <script>
-(function(){
-  const match=new URLSearchParams(location.search).get('match');
-  if(!match){document.getElementById('boot').textContent='Geen wedstryd-ID is verskaf nie.';return;}
-  const target='https://raw.githubusercontent.com/cricketstuffcoza-byte/junior-krieket-scoring/phase1-production/scorer-phase1.html?match='+encodeURIComponent(match)+'&v=20260830-o6-direct-1';
-  location.replace(target);
+(async()=>{
+  try{
+    const matchId=new URLSearchParams(location.search).get('match');
+    if(!matchId) throw Error('Geen wedstryd-ID is verskaf nie.');
+    const u='https://raw.githubusercontent.com/cricketstuffcoza-byte/junior-krieket-scoring/phase1-production/scorer-phase1.html?v=20260830-o6-srcdoc-2';
+    const r=await fetch(u,{cache:'no-store'});
+    if(!r.ok) throw Error('Fase 1 scorer kon nie gelaai word nie.');
+    let h=await r.text();
+    const old="const MATCH_ID=new URLSearchParams(location.search).get('match');";
+    const replacement='const MATCH_ID='+JSON.stringify(matchId)+';';
+    if(!h.includes(old)) throw Error('O/6 scorer se wedstryd-ID haak kon nie gevind word nie.');
+    h=h.replace(old,replacement);
+    // Make the embedded closing script tag parser-safe before assigning srcdoc.
+    h=h.replace("html.slice(0,pos)+bridge+'\\n</script>'", "html.slice(0,pos)+bridge+'\\n'+String.fromCharCode(60)+'/script>'");
+    const frame=document.createElement('iframe');
+    frame.id='frame';
+    frame.setAttribute('title','Junior Krieket – Fase 1 Telkaart');
+    frame.srcdoc=h;
+    document.body.replaceChildren(frame);
+  }catch(e){
+    const m=document.getElementById('m');
+    if(m){m.className='err';m.textContent=e?.message||String(e);}
+  }
 })();
 </script>
 </body>
