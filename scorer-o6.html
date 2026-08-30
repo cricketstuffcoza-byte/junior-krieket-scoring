@@ -8,28 +8,32 @@
 </head>
 <body>
 <script>
-(function(){
+(async function(){
   const q=new URLSearchParams(location.search);
   const id=q.get('match');
   if(!id){document.body.textContent='Geen wedstryd-ID is verskaf nie.';return;}
-  const frame=document.createElement('iframe');
-  frame.title='Junior Krieket – O/6 Telkaart';
-  frame.src='scoring-engine-v6.html?match='+encodeURIComponent(id)+'&v=29';
-  document.body.appendChild(frame);
-  frame.addEventListener('load',()=>{
-    try{
-      const doc=frame.contentDocument;
-      if(!doc)return;
-      if(!doc.querySelector('script[src*="supabase-js"]')){
-        const lib=doc.createElement('script');
-        lib.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
-        lib.onload=()=>{ try{ if(typeof frame.contentWindow.loadMatch==='function'){ frame.contentWindow.loadMatch().catch(e=>console.error('O/6 loadMatch failed',e)); } }catch(e){console.error(e)} };
-        doc.head.appendChild(lib);
-      }else if(typeof frame.contentWindow.loadMatch==='function'){
-        frame.contentWindow.loadMatch().catch(e=>console.error('O/6 loadMatch failed',e));
-      }
-    }catch(e){console.error('O/6 bootstrap failed',e)}
-  });
+  try{
+    const response=await fetch('scoring-engine-v6.html?match='+encodeURIComponent(id)+'&v=31',{cache:'no-store'});
+    if(!response.ok)throw new Error('Kon nie die O/6 scoring engine laai nie ('+response.status+').');
+    let html=await response.text();
+    const base='<base href="'+location.origin+'/">';
+    html=html.replace('</head>',base+'</head>');
+    const supabase='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"><\/script>';
+    const marker='<script>';
+    const pos=html.indexOf(marker);
+    if(pos<0)throw new Error('O/6 scoring engine script kon nie gevind word nie.');
+    html=html.slice(0,pos)+supabase+html.slice(pos);
+    const blob=new Blob([html],{type:'text/html'});
+    const url=URL.createObjectURL(blob);
+    const frame=document.createElement('iframe');
+    frame.title='Junior Krieket – O/6 Telkaart';
+    frame.src=url;
+    document.body.innerHTML='';
+    document.body.appendChild(frame);
+    frame.addEventListener('load',()=>URL.revokeObjectURL(url),{once:true});
+  }catch(e){
+    document.body.innerHTML='<div style="padding:24px;font-family:system-ui,sans-serif;color:#b42318;background:#fff0f0;border:1px solid #f3b4b4;border-radius:12px;margin:20px">'+String(e.message||e).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))+'</div>';
+  }
 })();
 </script>
 </body>
