@@ -1,0 +1,55 @@
+name: Fix O8 bowler selection
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch scorer
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path('scorer-fixed.html')
+          s = p.read_text(encoding='utf-8')
+
+          old = re.search(r'function ui\(\)\{.*?\}function endBallIfNeeded\(\)', s)
+          if not old:
+              raise SystemExit('Could not find ui() block')
+          new = '''function ui(){const i=cur();hide('setup');show('game');hide('batSelect');hide('bowlSelect');hide('scoreCard');hide('eventCard');hide('newBatterCard');if(i.striker&&i.non&&!i.bowler){selectedBowler=null;$('confirmBowl').disabled=true;show('bowlSelect');bowlChoices();render();return}if(i.striker&&i.non&&i.bowler){show('scoreCard');render();return}if(!i.striker&&i.non){replacementSlot='striker';$('newReason').textContent='Die vorige kolwer is uit. Kies slegs die een nuwe kolwer.';show('newBatterCard');newBatterChoices();render();return}selectedBat=[];show('batSelect');batChoices();render()}function endBallIfNeeded(){'''
+          s = s[:old.start()] + new + s[old.end():]
+
+          old2 = re.search(r'function showScoreOrBowler\(\)\{.*?\}async function openEvent', s)
+          if not old2:
+              raise SystemExit('Could not find showScoreOrBowler block')
+          new2 = '''function showScoreOrBowler(){const i=cur();hide('scoreCard');hide('eventCard');hide('newBatterCard');if(i.striker&&i.non&&!i.bowler){selectedBowler=null;$('confirmBowl').disabled=true;show('bowlSelect');bowlChoices();render();return}if(i.striker&&i.non&&i.bowler){show('scoreCard');render();return}ui()}async function openEvent'''
+          s = s[:old2.start()] + new2 + s[old2.end():]
+
+          p.write_text(s, encoding='utf-8')
+          print('patched scorer-fixed.html')
+          PY
+
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scorer-fixed.html
+          if git diff --cached --quiet; then
+            echo "No scorer change needed"
+            exit 0
+          fi
+          git commit -m "Fix O8 bowler selection after over"
+          git push
