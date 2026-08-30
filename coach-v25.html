@@ -50,7 +50,27 @@ frame.addEventListener('load',()=>{
       @media(max-width:800px){#loginForm{grid-template-columns:1fr!important}#teams,#players{grid-template-columns:1fr!important}}
     `;
     doc.head.appendChild(style);
-  }catch(e){console.error('Coach Portal styling failed',e)}
+
+    // IMPORTANT: never hard-code one scorecard. Resolve the match age first,
+    // then send O/6/U/6 to Phase 1 and O/8/U/8 to the correct O/8 T80 scorer.
+    const SB='https://moomommajyldjquncnrd.supabase.co';
+    const KEY='sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH';
+    const originalFetch=window.fetch;
+    doc.defaultView.openScorer=async function(id){
+      const mid=String(id||'').trim();
+      if(!mid)return;
+      try{
+        const r=await originalFetch(`${SB}/rest/v1/matches?select=age_group&id=eq.${encodeURIComponent(mid)}`,{headers:{apikey:KEY,Accept:'application/json'}});
+        const rows=await r.json();
+        const age=String(rows?.[0]?.age_group||'').toUpperCase();
+        const scorer=(age.includes('U/6')||age.includes('O/6'))?'scorer-phase1.html':'scorer-fixed.html';
+        doc.defaultView.location.href=`${scorer}?match=${encodeURIComponent(mid)}&v=26`;
+      }catch(e){
+        // Do not silently send the user to a wrong scorecard if the match cannot be resolved.
+        alert('Kon nie die ouderdomsgroep van hierdie wedstryd bepaal nie. Maak asseblief die wedstryd weer oop.');
+      }
+    };
+  }catch(e){console.error('Coach Portal styling/routing failed',e)}
 });
 </script>
 </body></html>
