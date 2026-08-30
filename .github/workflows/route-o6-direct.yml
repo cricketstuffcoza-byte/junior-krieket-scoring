@@ -1,0 +1,35 @@
+name: Route U6 coach scorecards directly to Alpha Omega V18
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/route-o6-direct.yml'
+jobs:
+  route:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set direct U6 scorecard route
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('coach-v24.html')
+          s=p.read_text(encoding='utf-8')
+          start=s.find('window.openScorer=')
+          if start < 0:
+              raise SystemExit('openScorer function not found')
+          end=s.find('</script>', start)
+          block=s[start:end]
+          replacement="window.openScorer=async function(id){const mid=String(id||'').trim();if(!mid)return;try{const r=await fetch(`https://moomommajyldjquncnrd.supabase.co/rest/v1/matches?select=age_group&id=eq.${encodeURIComponent(mid)}`,{headers:{apikey:'sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH',Accept:'application/json'}});const rows=await r.json();const age=String(rows?.[0]?.age_group||'').toUpperCase();const scorer=(age.includes('U/6')||age.includes('O/6'))?'scorer-o6-v18.html':'scorer-fixed.html';location.href=`${scorer}?match=${encodeURIComponent(mid)}`;}catch(e){alert('Kon nie die ouderdomsgroep van die wedstryd bepaal nie.')}};"
+          s=s[:start]+replacement+s[start+len(block):]
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit direct route
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add coach-v24.html
+          git commit -m 'Route U6 directly to preserved Alpha Omega V18' || exit 0
+          git push
