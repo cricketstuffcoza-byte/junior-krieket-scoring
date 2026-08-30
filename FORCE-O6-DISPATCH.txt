@@ -1,0 +1,1 @@
+Split scorer formats so U/6 routes to the dedicated O/6 engine.
