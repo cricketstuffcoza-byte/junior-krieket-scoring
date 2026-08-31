@@ -1,0 +1,31 @@
+name: Route O8 coach matches to V8
+on:
+  push:
+    paths:
+      - '.github/workflows/route-o8-v8.yml'
+  workflow_dispatch:
+jobs:
+  route:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update O8 route only
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('coach-v25.html')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('scorer-o8-v7.html?match=', 'scorer-o8-v8.html?match=')
+          s=s.replace('scorer-v5.html?match=', 'scorer-o8-v8.html?match=')
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit route change
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add coach-v25.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'Route O8 coach matches to scorer V8'
+          git push
