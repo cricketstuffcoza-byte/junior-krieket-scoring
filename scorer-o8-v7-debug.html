@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="af"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Junior Krieket – O/8 T80 V7 Debug</title><style>html,body,#f{margin:0;width:100%;height:100%;border:0}#f{display:block}#debug{position:fixed;left:12px;right:12px;bottom:12px;z-index:999999;background:#fff;border:3px solid #b42318;border-radius:12px;box-shadow:0 5px 25px #0004;padding:14px;font:14px system-ui;display:none;max-height:45vh;overflow:auto}#debug h3{margin:0 0 8px;color:#b42318}#debug pre{white-space:pre-wrap;margin:0;font:12px ui-monospace,monospace}#debug button{margin-top:10px;padding:8px 12px;font-weight:800}</style></head><body><iframe id="f"></iframe><div id="debug"><h3>⚠️ O/8 V7 FOUT</h3><pre id="debugText"></pre><button onclick="document.getElementById('debug').style.display='none'">Maak toe</button></div><script>
+'use strict';
+const p=new URLSearchParams(location.search),id=p.get('match');
+const frame=document.getElementById('f'),panel=document.getElementById('debug'),text=document.getElementById('debugText');
+let seen=[];
+function show(kind,message,source,line,col,error,context){
+ const detail=[kind,message,source?`Bron: ${source}`:'',line?`Lyn: ${line}${col?`:${col}`:''}`:'',error?.stack?`Stack:\n${error.stack}`:'',context?`\nKonteks: ${context}`:''].filter(Boolean).join('\n');
+ if(seen.includes(detail))return; seen.push(detail); if(seen.length>8)seen.shift(); text.textContent=seen.join('\n\n------------------------------\n\n'); panel.style.display='block';
+}
+window.addEventListener('error',e=>show('JavaScript error',e.message,e.filename,e.lineno,e.colno,e.error));
+window.addEventListener('unhandledrejection',e=>show('Onbehandelde Promise-fout',e.reason?.message||String(e.reason),'',0,0,e.reason));
+window.addEventListener('storage',()=>{});
+if(!id){show('Konfigurasie-fout','Geen match-ID in die URL nie.');}
+frame.src='./scorer-o8-v7.html?match='+encodeURIComponent(id||'');
+frame.addEventListener('load',()=>{
+  const w=frame.contentWindow;
+  const d=frame.contentDocument;
+  if(!w||!d)return;
+  w.addEventListener('error',e=>show('Fout binne O/8 V7',e.message,e.filename,e.lineno,e.colno,e.error));
+  w.addEventListener('unhandledrejection',e=>show('Onbehandelde Promise-fout binne O/8 V7',e.reason?.message||String(e.reason),'',0,0,e.reason));
+  const check=()=>{
+    const nested=d.querySelector('iframe');
+    if(nested){
+      const install=()=>{try{const nw=nested.contentWindow;if(!nw)return;nw.addEventListener('error',e=>show('Fout binne telkaart',e.message,e.filename,e.lineno,e.colno,e.error));nw.addEventListener('unhandledrejection',e=>show('Onbehandelde Promise-fout binne telkaart',e.reason?.message||String(e.reason),'',0,0,e.reason));}catch(e){show('Debug-fout',e.message)}};
+      nested.addEventListener('load',install,{once:false});install();return;
+    }
+    setTimeout(check,200);
+  };
+  check();
+});
+</script></body></html>
