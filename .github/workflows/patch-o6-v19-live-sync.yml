@@ -1,0 +1,36 @@
+name: Patch O6 V19 live sync
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Patch V16 source used by V19
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: cricketstuffcoza-byte/junior-krieket-scoring
+        run: |
+          set -e
+          python - <<'PY'
+          import os, json, base64, urllib.request
+          repo=os.environ['REPO']; token=os.environ['GH_TOKEN']; branch='o6-alpha-omega'; path='Telkaart-O6-ALPHA-OMEGA-V16.html'
+          api=f'https://api.github.com/repos/{repo}/contents/{path}?ref={branch}'
+          req=urllib.request.Request(api,headers={'Authorization':f'Bearer {token}','Accept':'application/vnd.github+json'})
+          data=json.load(urllib.request.urlopen(req))
+          html=base64.b64decode(data['content']).decode()
+          marker='JUNIOR_V19_LIVE_SYNC_V1'
+          if marker not in html:
+            script='''<script>/* JUNIOR_V19_LIVE_SYNC_V1 */(function(){\n"use strict";\nconst SB_URL="https://moomommajyldjquncnrd.supabase.co";\nconst SB_KEY="sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH";\nfunction matchId(){try{return new URLSearchParams(window.parent.location.search).get("match")}catch(e){return null}}\nasync function publish(){try{if(typeof state==="undefined"||!state||!state.started)return;const id=matchId();if(!id)return;const t=state.score[state.batting]||{};const payload={match_id:id,innings_no:Number(state.innings)||1,innings_runs:Number(t.runs)||0,innings_wickets:Number(t.wickets)||0,playable_balls:Number(t.legalBalls)||0,unplayable_balls:Number(t.unplayable)||0,over_no:Math.floor((Number(t.legalBalls)||0)/(R.legalPerOver||8)),over_playable_balls:(Number(t.legalBalls)||0)%(R.legalPerOver||8),pair_no:Number(state.pair)||0,pair_playable_balls:Number(state.pairBalls)||0,striker_id:null,non_striker_id:null,current_bowler_id:null,status:state.closed||state.completed?"COMPLETED":"LIVE",state_json:state,updated_at:new Date().toISOString(),updated_by:null};await fetch(SB_URL+"/rest/v1/live_match_state?on_conflict=match_id",{method:"POST",headers:{apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,"Content-Type":"application/json",Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify(payload)});}catch(e){console.warn("Live sync",e)}}\nsetInterval(publish,1000);window.addEventListener("beforeunload",publish);\n})();</script>'''
+            html=html.replace('</body></html>',script+'\n</body></html>')
+            new_content=base64.b64encode(html.encode()).decode()
+            put=f'https://api.github.com/repos/{repo}/contents/{path}'
+            body=json.dumps({'message':'Add V19 live state sync to O6 scorer source','content':new_content,'sha':data['sha'],'branch':branch}).encode()
+            req=urllib.request.Request(put,data=body,method='PUT',headers={'Authorization':f'Bearer {token}','Accept':'application/vnd.github+json','Content-Type':'application/json'})
+            print(urllib.request.urlopen(req).read().decode())
+          else:
+            print('Live sync already present')
+          PY
