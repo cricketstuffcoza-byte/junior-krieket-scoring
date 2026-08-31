@@ -35,8 +35,8 @@ async function init(){
  const response=await fetch(BASE_URL,{cache:'no-store'});if(!response.ok)throw Error('Die bewaarde Alpha & Omega V16 kon nie gelaai word nie ('+response.status+').');
  let html=await response.text();
  const safeMatch={teamA:teamA,teamB:teamB,group:'U/6',date:match.match_date||'',time:String(match.match_time||'').slice(0,5),venue:match.venue||''};
- html=html.replace(/const MATCH=\{[^;]*\};/,'const MATCH='+JSON.stringify(safeMatch)+';');
- html=html.replace(/const PLAYERS=\{[\s\S]*?\n\};/,'const PLAYERS='+JSON.stringify(players)+';');
+ html=html.replace(/const\s+MATCH\s*=\s*\{[\s\S]*?\};/,'const MATCH='+JSON.stringify(safeMatch)+';');
+ html=html.replace(/const\s+PLAYERS\s*=\s*\{[\s\S]*?\};/,'const PLAYERS='+JSON.stringify(players)+';');
  html=html.replace('Plaaslike toetsweergawe • wedstrydinstellings is deur Admin vooraf bepaal','Alpha & Omega U/6 V19 • wedstrydinstellings is deur Admin vooraf bepaal');
  const enhancement=`
 <style>
