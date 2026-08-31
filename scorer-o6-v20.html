@@ -3,51 +3,16 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Junior Krieket – Alpha & Omega U/6 V20</title>
-<style>body{margin:0;background:#eef2f6;font-family:system-ui,sans-serif;color:#172033}.bar{max-width:1120px;margin:auto;padding:12px 18px}.card{background:#fff;border-radius:16px;padding:18px;margin:10px 0;box-shadow:0 2px 12px #0001}.error{color:#b42318;background:#fff3f2;border:1px solid #efc0bd}.hidden{display:none}.frame{width:100%;height:calc(100vh - 40px);min-height:900px;border:0;border-radius:16px;background:#fff}</style>
 </head>
-<body><div class="bar"><div id="error" class="card error hidden"></div><iframe id="frame" class="frame hidden" title="Junior Krieket Alpha & Omega U/6 V20"></iframe></div>
+<body>
 <script>
 'use strict';
-const U='https://moomommajyldjquncnrd.supabase.co';
-const K='sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH';
-const BASE='https://raw.githubusercontent.com/cricketstuffcoza-byte/junior-krieket-scoring/o6-alpha-omega/Telkaart-O6-ALPHA-OMEGA-V16.html';
-const $=x=>document.getElementById(x);
-function fail(e){$('error').textContent=e?.message||String(e);$('error').classList.remove('hidden')}
-function afDate(v){
- if(!v)return '';
- const p=String(v).slice(0,10).split('-');
- if(p.length!==3)return v;
- const months=['Januarie','Februarie','Maart','April','Mei','Junie','Julie','Augustus','September','Oktober','November','Desember'];
- return `${Number(p[2])} ${months[Number(p[1])-1]||p[1]} ${p[0]}`;
-}
-async function init(){
- const id=new URLSearchParams(location.search).get('match');
- if(!id)throw Error('Geen wedstryd-ID ontvang nie.');
- const r=await fetch(U+'/rest/v1/rpc/get_o6_match',{method:'POST',headers:{apikey:K,Authorization:'Bearer '+K,'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({p_match_id:id}),cache:'no-store'});
- const text=await r.text();
- if(!r.ok)throw Error('Supabase fout '+r.status+': '+text);
- const m=text?JSON.parse(text):null;
- if(!m)throw Error('Die wedstryd kon nie gevind word nie.');
- const A=m.team_a,B=m.team_b;
- if(!A||!B)throw Error('Die twee spanne kon nie uit die wedstryd gevind word nie.');
- const playersA=(m.players_a||[]).map(x=>[x.first_name,x.surname].filter(Boolean).join(' ')).filter(Boolean);
- const playersB=(m.players_b||[]).map(x=>[x.first_name,x.surname].filter(Boolean).join(' ')).filter(Boolean);
- if(playersA.length<2||playersB.length<2)throw Error('Die wedstryd se spelers kon nie volledig gelaai word nie.');
- const base=await fetch(BASE,{cache:'no-store'});
- if(!base.ok)throw Error('Die Alpha & Omega basis-telkaart kon nie gelaai word nie ('+base.status+').');
- let h=await base.text();
- const MATCH={teamA:A,teamB:B,group:'U/6',date:m.match_date||'',time:String(m.match_time||'').slice(0,5),venue:m.venue||''};
- const PLAYERS={};PLAYERS[A]=playersA;PLAYERS[B]=playersB;
- h=h.replace(/const\s+MATCH\s*=\s*\{[\s\S]*?\};/,'const MATCH='+JSON.stringify(MATCH)+';');
- h=h.replace(/const\s+PLAYERS\s*=\s*\{[\s\S]*?\};/,'const PLAYERS='+JSON.stringify(PLAYERS)+';');
- h=h.replace(/Plaaslike toetsweergawe[^<]*/g,'Alpha & Omega U/6 V20');
- // The preserved V16 scorer contains its original static header values in HTML.
- // Replace those display values as well; the live state still comes from MATCH/PLAYERS above.
- h=h.replace(/31 Augustus 2026/g,afDate(MATCH.date));
- h=h.replace(/17:30/g,MATCH.time||'');
- h=h.replace(/Blitzwolwe/g,A);
- h=h.replace(/Sixers/g,B);
- const f=$('frame');f.src=URL.createObjectURL(new Blob([h],{type:'text/html'}));f.classList.remove('hidden');
-}
-init().catch(fail);
-</script></body></html>
+// V20 is the database-driven entry point for the proven V19 scorer.
+// Do not duplicate or alter the scoring engine here: V19 already contains
+// the verified available-player flow, run-out batter selection, replacement
+// flow, and the complete Alpha & Omega scoring behaviour.
+const params = location.search || '';
+location.replace('scorer-o6-v19.html' + params);
+</script>
+</body>
+</html>
