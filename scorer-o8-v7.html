@@ -37,9 +37,11 @@ frame.onload=()=>{
       if(!client){ov.innerHTML='<div class="av-card"><h2>Fout</h2><div class="av-error">Supabase kon nie gelaai word nie.</div></div>';return}
       const mr=await client.from('matches').select('id,team_a_id,team_b_id').eq('id',matchId).single();
       if(mr.error)throw mr.error;
+      const tr=await client.from('teams').select('id,name').in('id',[mr.data.team_a_id,mr.data.team_b_id]);
+      if(tr.error)throw tr.error;
       const pr=await client.from('players').select('id,first_name,surname,team_id,active').in('team_id',[mr.data.team_a_id,mr.data.team_b_id]).eq('active',true).order('first_name');
       if(pr.error)throw pr.error;
-      teams=[{id:mr.data.team_a_id,name:'Span A'},{id:mr.data.team_b_id,name:'Span B'}];
+      teams=[{id:mr.data.team_a_id,name:tr.data.find(x=>x.id===mr.data.team_a_id)?.name||'Span A'},{id:mr.data.team_b_id,name:tr.data.find(x=>x.id===mr.data.team_b_id)?.name||'Span B'}];
       players=pr.data||[];
       const sr=await client.from('live_match_state').select('innings_no,state_json').eq('match_id',matchId).maybeSingle();
       if(!sr.error && sr.data?.innings_no>=2) phase=2;
