@@ -12,35 +12,29 @@ const U='https://moomommajyldjquncnrd.supabase.co';
 const K='sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH';
 const BASE='https://raw.githubusercontent.com/cricketstuffcoza-byte/junior-krieket-scoring/o6-alpha-omega/Telkaart-O6-ALPHA-OMEGA-V16.html';
 const $=x=>document.getElementById(x);
-async function sb(path){
- const r=await fetch(U+'/rest/v1/'+path,{headers:{apikey:K,Authorization:'Bearer '+K,Accept:'application/json'},cache:'no-store'});
- const t=await r.text(); if(!r.ok) throw Error('Supabase fout '+r.status+': '+t); return t?JSON.parse(t):[];
-}
 function fail(e){$('error').textContent=e?.message||String(e);$('error').classList.remove('hidden')}
 async function init(){
  const id=new URLSearchParams(location.search).get('match');
- if(!id) throw Error('Geen wedstryd-ID ontvang nie.');
- const rows=await sb('matches?select=id,team_a_id,team_b_id,match_date,match_time,venue,age_group,status&id=eq.'+encodeURIComponent(id)+'&limit=1');
- const m=rows[0]; if(!m) throw Error('Die wedstryd kon nie gevind word nie.');
- const age=String(m.age_group||'').toUpperCase().replace('O/','U/');
- if(age!=='U/6') throw Error('V20 is vir U/6 wedstryde.');
- const ids=[m.team_a_id,m.team_b_id].filter(Boolean).map(encodeURIComponent).join(',');
- const teams=await sb('teams?select=id,name&id=in.('+ids+')');
- const map=Object.fromEntries(teams.map(t=>[t.id,t.name]));
- const A=map[m.team_a_id],B=map[m.team_b_id];
- if(!A||!B) throw Error('Die twee spanne kon nie uit die wedstryd gevind word nie.');
- const mp=await sb('match_players?select=player_id,team_id,players(first_name,surname)&match_id=eq.'+encodeURIComponent(id));
- const P={};
- P[A]=mp.filter(x=>x.team_id===m.team_a_id&&x.players).map(x=>[x.players.first_name,x.players.surname].filter(Boolean).join(' '));
- P[B]=mp.filter(x=>x.team_id===m.team_b_id&&x.players).map(x=>[x.players.first_name,x.players.surname].filter(Boolean).join(' '));
- if(P[A].length<2||P[B].length<2) throw Error('Die wedstryd se spelers kon nie volledig gelaai word nie.');
- const r=await fetch(BASE,{cache:'no-store'}); if(!r.ok) throw Error('Die Alpha & Omega basis-telkaart kon nie gelaai word nie.');
- let h=await r.text();
- const M={teamA:A,teamB:B,group:'U/6',date:m.match_date||'',time:String(m.match_time||'').slice(0,5),venue:m.venue||''};
- h=h.replace(/const\s+MATCH\s*=\s*\{[\s\S]*?\};/,'const MATCH='+JSON.stringify(M)+';');
- h=h.replace(/const\s+PLAYERS\s*=\s*\{[\s\S]*?\};/,'const PLAYERS='+JSON.stringify(P)+';');
+ if(!id)throw Error('Geen wedstryd-ID ontvang nie.');
+ const r=await fetch(U+'/rest/v1/rpc/get_o6_match',{method:'POST',headers:{apikey:K,Authorization:'Bearer '+K,'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({p_match_id:id}),cache:'no-store'});
+ const text=await r.text();
+ if(!r.ok)throw Error('Supabase fout '+r.status+': '+text);
+ const m=text?JSON.parse(text):null;
+ if(!m)throw Error('Die wedstryd kon nie gevind word nie.');
+ const A=m.team_a,B=m.team_b;
+ if(!A||!B)throw Error('Die twee spanne kon nie uit die wedstryd gevind word nie.');
+ const playersA=(m.players_a||[]).map(x=>[x.first_name,x.surname].filter(Boolean).join(' ')).filter(Boolean);
+ const playersB=(m.players_b||[]).map(x=>[x.first_name,x.surname].filter(Boolean).join(' ')).filter(Boolean);
+ if(playersA.length<2||playersB.length<2)throw Error('Die wedstryd se spelers kon nie volledig gelaai word nie.');
+ const base=await fetch(BASE,{cache:'no-store'});
+ if(!base.ok)throw Error('Die Alpha & Omega basis-telkaart kon nie gelaai word nie ('+base.status+').');
+ let h=await base.text();
+ const MATCH={teamA:A,teamB:B,group:'U/6',date:m.match_date||'',time:String(m.match_time||'').slice(0,5),venue:m.venue||''};
+ const PLAYERS={};PLAYERS[A]=playersA;PLAYERS[B]=playersB;
+ h=h.replace(/const\s+MATCH\s*=\s*\{[\s\S]*?\};/,'const MATCH='+JSON.stringify(MATCH)+';');
+ h=h.replace(/const\s+PLAYERS\s*=\s*\{[\s\S]*?\};/,'const PLAYERS='+JSON.stringify(PLAYERS)+';');
  h=h.replace(/Plaaslike toetsweergawe[^<]*/g,'Alpha & Omega U/6 V20');
- const f=$('frame'); f.src=URL.createObjectURL(new Blob([h],{type:'text/html'})); f.classList.remove('hidden');
+ const f=$('frame');f.src=URL.createObjectURL(new Blob([h],{type:'text/html'}));f.classList.remove('hidden');
 }
 init().catch(fail);
 </script></body></html>
