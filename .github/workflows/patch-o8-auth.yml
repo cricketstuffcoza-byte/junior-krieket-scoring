@@ -2,7 +2,7 @@ name: Patch O8 scorer auth
 
 on:
   push:
-    branches: [main]
+    branches: ["*"]
   workflow_dispatch:
 
 permissions:
