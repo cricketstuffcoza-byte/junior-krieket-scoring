@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - '.github/workflows/o8-v8-authenticated-data.yml'
+      - '.github/retrigger-o8'
   workflow_dispatch:
 jobs:
   patch:
@@ -21,7 +22,7 @@ jobs:
           if marker in s and 'cdn.jsdelivr.net/npm/@supabase/supabase-js@2' not in s:
               s=s.replace(marker, '<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>\n<script>\n"use strict";', 1)
           old='''    const API="https://moomommajyldjquncnrd.supabase.co/rest/v1";\n    const KEY="sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH";\n    const H={apikey:KEY,Authorization:"Bearer "+KEY,Accept:"application/json"};'''
-          new='''    const API="https://moomommajyldjquncnrd.supabase.co/rest/v1";\n    const KEY="sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH";\n    let accessToken=null;\n    try{\n      if(window.supabase?.createClient){\n        const authClient=window.supabase.createClient("https://moomommajyldjquncnrd.supabase.co",KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});\n        const sessionResult=await authClient.auth.getSession();\n        accessToken=sessionResult?.data?.session?.access_token||null;\n      }\n    }catch(_){}\n    const H={apikey:KEY,Authorization:"Bearer "+(accessToken||KEY),Accept:"application/json"};'''
+          new='''    const API="https://moomommajyldjquncnrd.supabase.co/rest/v1";\n    const KEY="sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH";\n    // V8 is opened from the authenticated Coach V25 portal. Reuse the\n    // browser Supabase session so RLS sees the logged-in coach.\n    let accessToken=null;\n    try{\n      if(window.supabase?.createClient){\n        const authClient=window.supabase.createClient("https://moomommajyldjquncnrd.supabase.co",KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});\n        const sessionResult=await authClient.auth.getSession();\n        accessToken=sessionResult?.data?.session?.access_token||null;\n      }\n    }catch(_){}\n    const H={apikey:KEY,Authorization:"Bearer "+(accessToken||KEY),Accept:"application/json"};'''
           if old not in s:
               raise SystemExit('Expected production loader header block not found; refusing to modify V8')
           s=s.replace(old,new,1)
@@ -40,4 +41,3 @@ jobs:
           git add scorer-o8-v8.html
           git commit -m 'Use authenticated coach session in O8 V8 loader' || exit 0
           git push
-# retrigger authenticated V8 production patch
