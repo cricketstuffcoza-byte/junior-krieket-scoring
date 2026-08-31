@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Junior Krieket – O/8 T80 V7</title>
+<title>Junior Krieket – O/8 T80 V8</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#eef2f6;color:#172033;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -41,15 +41,15 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px;bord
 <div class="app">
 <section class="card top">
   <h1>🏏 Junior Krieket – O/8 T80</h1>
-  <div class="muted">O/8 T80 V7 • 80 balle • 5 balle per boulbeurt</div>
+  <div class="muted">O/8 T80 V8 • 80 balle • 5 balle per boulbeurt</div>
 </section>
 
 <section id="setup" class="card">
   <h2>1. Voor-wedstryd</h2>
   <div class="notice">Hierdie prototipe is heeltemal onafhanklik. Geen Supabase, geen bestaande telkaart en geen bestaande scorer word gebruik nie.</div>
   <div class="grid two" style="margin-top:12px">
-    <div><label>Span A<br><input id="teamA" value="Wonnie Warriors" style="width:100%;padding:10px"></label></div>
-    <div><label>Span B<br><input id="teamB" value="Buffel Bowlers" style="width:100%;padding:10px"></label></div>
+    <div><label>Span A<br><input id="teamA" value="" placeholder="Laai wedstrydspan…" style="width:100%;padding:10px"></label></div>
+    <div><label>Span B<br><input id="teamB" value="" placeholder="Laai wedstrydspan…" style="width:100%;padding:10px"></label></div>
   </div>
   <h3>Beskikbare spelers – Span A</h3><div id="playersA" class="choices"></div>
   <h3>Beskikbare spelers – Span B</h3><div id="playersB" class="choices"></div>
@@ -196,8 +196,8 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px;bord
 <script>
 "use strict";
 const $=id=>document.getElementById(id);
-const namesA=["Arno Coetzer","SJ Pretorius","Malan Kruger","Juan le Roux","Gerrit Nolte","Danie Jacobs","Luan Botha","Jaco Meyer","Ben du Plessis","Ruan Smit"];
-const namesB=["Speler B1","Speler B2","Speler B3","Speler B4","Speler B5","Speler B6","Speler B7","Speler B8","Speler B9","Speler B10"];
+const namesA=[];
+const namesB=[];
 let state={innings:1,players:[],batTeam:null,fieldTeam:null,striker:null,non:null,bowler:null,balls:0,overBalls:0,over:1,overBallsLimit:5,overs:16,runs:0,wickets:0,target:null,log:[],selectedOpen:[],selectedNew:null,retireId:null,retireSlot:null,outId:null,outHow:null,outSlot:null,outFielder:null,retired:[],out:[],batted:[],bowlerRuns:{},bowlerBalls:{},fielderCatches:{},fielderRunouts:{},paused:false,innings1:null,inningsAvailability:{1:[],2:[]},history:[],inningsStats:{1:{},2:{}}};
 
 function player(id,name,team){return {id,name,team,runs:0,balls:0,fours:0,sixes:0,out:null,retired:false,wicketsTaken:0,inningsStats:{1:{runs:0,balls:0,bowlingBalls:0,bowlingRuns:0,wickets:0,catches:0,runouts:0},2:{runs:0,balls:0,bowlingBalls:0,bowlingRuns:0,wickets:0,catches:0,runouts:0}}}}
