@@ -20,26 +20,6 @@ function afDate(v){
  const months=['Januarie','Februarie','Maart','April','Mei','Junie','Julie','Augustus','September','Oktober','November','Desember'];
  return `${Number(p[2])} ${months[Number(p[1])-1]||p[1]} ${p[0]}`;
 }
-function patchStaticUi(doc){
- const locked=[...doc.querySelectorAll('.locked')];
- if(locked.length>=6){
-   locked[0].textContent=MATCH.group;
-   locked[1].textContent=afDate(MATCH.date);
-   locked[2].textContent=MATCH.time||'';
-   locked[3].textContent=MATCH.venue||'';
-   locked[4].textContent=MATCH.teamA;
-   locked[5].textContent=MATCH.teamB;
- }
- const a=doc.getElementById('labelA'),b=doc.getElementById('labelB');
- if(a)a.textContent=MATCH.teamA;
- if(b)b.textContent=MATCH.teamB;
- const tw=doc.getElementById('tossWinner');
- if(tw){tw.innerHTML='<option value="">Kies...</option>';[MATCH.teamA,MATCH.teamB].forEach(t=>{const o=doc.createElement('option');o.value=t;o.textContent=t;tw.appendChild(o)})}
- const winner=doc.getElementById('winner');
- if(winner){winner.innerHTML='';[MATCH.teamA,MATCH.teamB].forEach(t=>{const o=doc.createElement('option');o.value=t;o.textContent=t;winner.appendChild(o)})}
- const title=doc.querySelector('.top .muted');
- if(title)title.textContent='Alpha & Omega U/6 V20';
-}
 async function init(){
  const id=new URLSearchParams(location.search).get('match');
  if(!id)throw Error('Geen wedstryd-ID ontvang nie.');
@@ -61,7 +41,12 @@ async function init(){
  h=h.replace(/const\s+MATCH\s*=\s*\{[\s\S]*?\};/,'const MATCH='+JSON.stringify(MATCH)+';');
  h=h.replace(/const\s+PLAYERS\s*=\s*\{[\s\S]*?\};/,'const PLAYERS='+JSON.stringify(PLAYERS)+';');
  h=h.replace(/Plaaslike toetsweergawe[^<]*/g,'Alpha & Omega U/6 V20');
- h=h.replace('</body>',`<script>patchStaticUi(document);</script></body>`);
+ // The preserved V16 scorer contains its original static header values in HTML.
+ // Replace those display values as well; the live state still comes from MATCH/PLAYERS above.
+ h=h.replace(/31 Augustus 2026/g,afDate(MATCH.date));
+ h=h.replace(/17:30/g,MATCH.time||'');
+ h=h.replace(/Blitzwolwe/g,A);
+ h=h.replace(/Sixers/g,B);
  const f=$('frame');f.src=URL.createObjectURL(new Blob([h],{type:'text/html'}));f.classList.remove('hidden');
 }
 init().catch(fail);
