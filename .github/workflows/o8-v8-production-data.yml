@@ -1,0 +1,41 @@
+name: O8 V8 production match data
+on:
+  push:
+    paths:
+      - '.github/workflows/o8-v8-production-data.yml'
+  workflow_dispatch:
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove prototype test defaults
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('scorer-o8-v8.html')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('value="Wonnie Warriors"', 'value="" placeholder="Laai wedstrydspan…"')
+          s=s.replace('value="Buffel Bowlers"', 'value="" placeholder="Laai wedstrydspan…"')
+          s=s.replace('const namesA=["Arno Coetzer","SJ Pretorius","Malan Kruger","Juan le Roux","Gerrit Nolte","Danie Jacobs","Luan Botha","Jaco Meyer","Ben du Plessis","Ruan Smit"];', 'const namesA=[];')
+          s=s.replace('const namesB=["Speler B1","Speler B2","Speler B3","Speler B4","Speler B5","Speler B6","Speler B7","Speler B8","Speler B9","Speler B10"];', 'const namesB=[];')
+          s=s.replace('O/8 T80 V7 • 80 balle • 5 balle per boulbeurt', 'O/8 T80 V8 • 80 balle • 5 balle per boulbeurt')
+          s=s.replace('<title>Junior Krieket – O/8 T80 V7</title>', '<title>Junior Krieket – O/8 T80 V8</title>')
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Verify production data loader
+        run: |
+          grep -q 'const namesA=\[\];' scorer-o8-v8.html
+          grep -q 'const namesB=\[\];' scorer-o8-v8.html
+          grep -q 'productionBoot();' scorer-o8-v8.html
+          grep -q 'players?team_id=in.' scorer-o8-v8.html
+          grep -q 'teams?id=in.' scorer-o8-v8.html
+      - name: Commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scorer-o8-v8.html
+          git commit -m 'Make O8 V8 load production match teams and players' || exit 0
+          git push
