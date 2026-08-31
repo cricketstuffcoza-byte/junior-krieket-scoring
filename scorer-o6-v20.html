@@ -1,1 +1,46 @@
-<!doctype html><html lang="af"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Junior Krieket – Alpha & Omega U/6 V20</title><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><style>body{margin:0;background:#eef2f6;font-family:system-ui,sans-serif;color:#172033}.bar{max-width:1120px;margin:auto;padding:12px 18px}.card{background:#fff;border-radius:16px;padding:18px;margin:10px 0;box-shadow:0 2px 12px #0001}.error{color:#b42318;background:#fff3f2;border:1px solid #efc0bd}.hidden{display:none}.frame{width:100%;height:calc(100vh - 40px);min-height:900px;border:0;border-radius:16px;background:#fff}</style></head><body><div class="bar"><div id="error" class="card error hidden"></div><iframe id="frame" class="frame hidden" title="Junior Krieket Alpha & Omega U/6 V20"></iframe></div><script>'use strict';const U='https://moomommajyldjquncnrd.supabase.co',K='sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH',BASE='https://raw.githubusercontent.com/cricketstuffcoza-byte/junior-krieket-scoring/o6-alpha-omega/Telkaart-O6-ALPHA-OMEGA-V16.html',db=supabase.createClient(U,K);const $=x=>document.getElementById(x);function fail(e){$('error').textContent=e?.message||String(e);$('error').classList.remove('hidden')}async function init(){const id=new URLSearchParams(location.search).get('match');if(!id)throw Error('Geen wedstryd-ID ontvang nie.');const {data:m,error}=await db.from('matches').select('id,team_a_id,team_b_id,match_date,match_time,venue,age_group').eq('id',id).maybeSingle();if(error)throw error;if(!m)throw Error('Die wedstryd kon nie gevind word nie.');const age=String(m.age_group||'').toUpperCase().replace('O/','U/');if(age!=='U/6')throw Error('V20 is vir U/6 wedstryde.');const ids=[m.team_a_id,m.team_b_id].filter(Boolean);const tr=await db.from('teams').select('id,name').in('id',ids);if(tr.error)throw tr.error;const map=Object.fromEntries((tr.data||[]).map(t=>[t.id,t.name]));const A=map[m.team_a_id],B=map[m.team_b_id];if(!A||!B)throw Error('Die twee spanne kon nie uit die wedstryd gevind word nie.');const mp=await db.from('match_players').select('player_id,team_id,players(first_name,surname)').eq('match_id',id);if(mp.error)throw mp.error;const P={};P[A]=(mp.data||[]).filter(x=>x.team_id===m.team_a_id&&x.players).map(x=>[x.players.first_name,x.players.surname].filter(Boolean).join(' '));P[B]=(mp.data||[]).filter(x=>x.team_id===m.team_b_id&&x.players).map(x=>[x.players.first_name,x.players.surname].filter(Boolean).join(' '));if(P[A].length<2||P[B].length<2)throw Error('Die wedstryd se spelers kon nie volledig gelaai word nie.');const r=await fetch(BASE,{cache:'no-store'});if(!r.ok)throw Error('Die Alpha & Omega basis-telkaart kon nie gelaai word nie.');let h=await r.text();const M={teamA:A,teamB:B,group:'U/6',date:m.match_date||'',time:String(m.match_time||'').slice(0,5),venue:m.venue||''};h=h.replace(/const\s+MATCH\s*=\s*\{[\s\S]*?\};/,'const MATCH='+JSON.stringify(M)+';');h=h.replace(/const\s+PLAYERS\s*=\s*\{[\s\S]*?\};/,'const PLAYERS='+JSON.stringify(P)+';');h=h.replace(/Plaaslike toetsweergawe[^<]*/g,'Alpha & Omega U/6 V20');const f=$('frame');f.src=URL.createObjectURL(new Blob([h],{type:'text/html'}));f.classList.remove('hidden')}init().catch(fail)</script></body></html>
+<!doctype html>
+<html lang="af">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Junior Krieket – Alpha & Omega U/6 V20</title>
+<style>body{margin:0;background:#eef2f6;font-family:system-ui,sans-serif;color:#172033}.bar{max-width:1120px;margin:auto;padding:12px 18px}.card{background:#fff;border-radius:16px;padding:18px;margin:10px 0;box-shadow:0 2px 12px #0001}.error{color:#b42318;background:#fff3f2;border:1px solid #efc0bd}.hidden{display:none}.frame{width:100%;height:calc(100vh - 40px);min-height:900px;border:0;border-radius:16px;background:#fff}</style>
+</head>
+<body><div class="bar"><div id="error" class="card error hidden"></div><iframe id="frame" class="frame hidden" title="Junior Krieket Alpha & Omega U/6 V20"></iframe></div>
+<script>
+'use strict';
+const U='https://moomommajyldjquncnrd.supabase.co';
+const K='sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH';
+const BASE='https://raw.githubusercontent.com/cricketstuffcoza-byte/junior-krieket-scoring/o6-alpha-omega/Telkaart-O6-ALPHA-OMEGA-V16.html';
+const $=x=>document.getElementById(x);
+async function sb(path){
+ const r=await fetch(U+'/rest/v1/'+path,{headers:{apikey:K,Authorization:'Bearer '+K,Accept:'application/json'},cache:'no-store'});
+ const t=await r.text(); if(!r.ok) throw Error('Supabase fout '+r.status+': '+t); return t?JSON.parse(t):[];
+}
+function fail(e){$('error').textContent=e?.message||String(e);$('error').classList.remove('hidden')}
+async function init(){
+ const id=new URLSearchParams(location.search).get('match');
+ if(!id) throw Error('Geen wedstryd-ID ontvang nie.');
+ const rows=await sb('matches?select=id,team_a_id,team_b_id,match_date,match_time,venue,age_group,status&id=eq.'+encodeURIComponent(id)+'&limit=1');
+ const m=rows[0]; if(!m) throw Error('Die wedstryd kon nie gevind word nie.');
+ const age=String(m.age_group||'').toUpperCase().replace('O/','U/');
+ if(age!=='U/6') throw Error('V20 is vir U/6 wedstryde.');
+ const ids=[m.team_a_id,m.team_b_id].filter(Boolean).map(encodeURIComponent).join(',');
+ const teams=await sb('teams?select=id,name&id=in.('+ids+')');
+ const map=Object.fromEntries(teams.map(t=>[t.id,t.name]));
+ const A=map[m.team_a_id],B=map[m.team_b_id];
+ if(!A||!B) throw Error('Die twee spanne kon nie uit die wedstryd gevind word nie.');
+ const mp=await sb('match_players?select=player_id,team_id,players(first_name,surname)&match_id=eq.'+encodeURIComponent(id));
+ const P={};
+ P[A]=mp.filter(x=>x.team_id===m.team_a_id&&x.players).map(x=>[x.players.first_name,x.players.surname].filter(Boolean).join(' '));
+ P[B]=mp.filter(x=>x.team_id===m.team_b_id&&x.players).map(x=>[x.players.first_name,x.players.surname].filter(Boolean).join(' '));
+ if(P[A].length<2||P[B].length<2) throw Error('Die wedstryd se spelers kon nie volledig gelaai word nie.');
+ const r=await fetch(BASE,{cache:'no-store'}); if(!r.ok) throw Error('Die Alpha & Omega basis-telkaart kon nie gelaai word nie.');
+ let h=await r.text();
+ const M={teamA:A,teamB:B,group:'U/6',date:m.match_date||'',time:String(m.match_time||'').slice(0,5),venue:m.venue||''};
+ h=h.replace(/const\s+MATCH\s*=\s*\{[\s\S]*?\};/,'const MATCH='+JSON.stringify(M)+';');
+ h=h.replace(/const\s+PLAYERS\s*=\s*\{[\s\S]*?\};/,'const PLAYERS='+JSON.stringify(P)+';');
+ h=h.replace(/Plaaslike toetsweergawe[^<]*/g,'Alpha & Omega U/6 V20');
+ const f=$('frame'); f.src=URL.createObjectURL(new Blob([h],{type:'text/html'})); f.classList.remove('hidden');
+}
+init().catch(fail);
+</script></body></html>
