@@ -19,7 +19,8 @@ async function init(){
  const r=await fetch(U+'/rest/v1/rpc/get_o6_match',{method:'POST',headers:{apikey:K,Authorization:'Bearer '+K,'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({p_match_id:id}),cache:'no-store'});
  const text=await r.text();
  if(!r.ok)throw Error('Supabase fout '+r.status+': '+text);
- const m=text?JSON.parse(text):null;
+ const raw=text?JSON.parse(text):null;
+ const m=Array.isArray(raw)?raw[0]:raw;
  if(!m)throw Error('Die wedstryd kon nie gevind word nie.');
  const A=m.team_a,B=m.team_b;
  if(!A||!B)throw Error('Die twee spanne kon nie uit die wedstryd gevind word nie.');
