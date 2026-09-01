@@ -2,17 +2,50 @@
 <html lang="af">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Junior Krieket – Alpha & Omega U/6 V20</title>
+<title>Junior Krieket – O/6 Telkaart</title>
+<style>html,body{margin:0;width:100%;height:100%;background:#eef2f6;font-family:system-ui,sans-serif}#boot{max-width:900px;margin:40px auto;background:#fff;border-radius:16px;padding:24px;font-weight:800}#app{display:none;width:100%;height:100%;border:0}</style>
 </head>
 <body>
+<div id="boot">Laai en herstel die O/6 wedstryd…</div>
+<iframe id="app" title="Junior Krieket O/6 Telkaart"></iframe>
 <script>
 'use strict';
-// V20 is the database-driven entry point for the proven V19 scorer.
-// Do not duplicate or alter the scoring engine here: V19 already contains
-// the verified available-player flow, run-out batter selection, replacement
-// flow, and the complete Alpha & Omega scoring behaviour.
-const params = location.search || '';
-location.replace('scorer-o6-v19.html' + params);
+(async function(){
+ const q=new URLSearchParams(location.search),id=q.get('match');
+ const boot=document.getElementById('boot'),frame=document.getElementById('app');
+ if(!id){boot.textContent='Geen wedstryd-ID is verskaf nie.';return}
+ const SB='https://moomommajyldjquncnrd.supabase.co',KEY='sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH',H={apikey:KEY,Authorization:'Bearer '+KEY};
+ try{
+  const mRes=await fetch(SB+'/rest/v1/matches?select=id,team_a_id,team_b_id,match_date,match_time,venue,age_group,first_batting_team_id,second_batting_team_id,status&id=eq.'+encodeURIComponent(id),{headers:H,cache:'no-store'});
+  if(!mRes.ok)throw Error('Wedstryddata kon nie gelaai word nie.');
+  const match=(await mRes.json())[0];if(!match)throw Error('Wedstryd is nie gevind nie.');
+  const ids=[match.team_a_id,match.team_b_id].filter(Boolean).join(',');
+  const [tRes,pRes]=await Promise.all([fetch(SB+'/rest/v1/teams?select=id,name&id=in.('+ids+')',{headers:H,cache:'no-store'}),fetch(SB+'/rest/v1/players?select=first_name,surname,team_id&team_id=in.('+ids+')&active=eq.true',{headers:H,cache:'no-store'})]);
+  if(!tRes.ok||!pRes.ok)throw Error('Span- of spelerdata kon nie gelaai word nie.');
+  const teams=await tRes.json(),players=await pRes.json(),tm=Object.fromEntries(teams.map(x=>[x.id,x.name]));
+  const teamA=tm[match.team_a_id]||'Span A',teamB=tm[match.team_b_id]||'Span B',byTeam={};
+  byTeam[teamA]=players.filter(x=>x.team_id===match.team_a_id).map(x=>[x.first_name,x.surname].filter(Boolean).join(' ')).filter(Boolean);
+  byTeam[teamB]=players.filter(x=>x.team_id===match.team_b_id).map(x=>[x.first_name,x.surname].filter(Boolean).join(' ')).filter(Boolean);
+  if(id!=='54e506e4-dcdc-478c-b223-c748e784f5de')throw Error('Hierdie herstelroete is tans net vir die Vikings vs Dragons wedstryd geaktiveer.');
+  const rr=await fetch('./restore-vikings-dragons.html?restore='+Date.now(),{cache:'no-store'});if(!rr.ok)throw Error('Die historiese hersteldata kon nie bereik word nie.');
+  const txt=await rr.text(),m=txt.match(/const DATA='([^']+)'/);if(!m)throw Error('Die hersteldata is korrup of ontbreek nie.');
+  const raw=atob(m[1]),bytes=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
+  const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip')),backup=JSON.parse(await new Response(stream).text());
+  if(!backup||!backup.state||!backup.state.started)throw Error('Die gestoorde wedstryd bevat nie n geldige aktiewe telling nie.');
+  const coreRes=await fetch('./o6-v19-core.html?core='+Date.now(),{cache:'no-store'});if(!coreRes.ok)throw Error('Die O/6 telkaart-kern kon nie gelaai word nie.');
+  let html=await coreRes.text();
+  const matchObj={teamA,teamB,group:String(match.age_group||'U/6'),date:match.match_date||'',time:String(match.match_time||'').slice(0,5),venue:match.venue||'Laerskool Wonderboom'};
+  html=html.replace(/const MATCH=\{[^;]*\};/,'const MATCH='+JSON.stringify(matchObj)+';');
+  html=html.replace(/const PLAYERS=\{[\s\S]*?\};\s*const RULES=/,'const PLAYERS='+JSON.stringify(byTeam)+';\nconst RULES=');
+  html=html.replace(/<div class="locked">Blitzwolwe<\/div>/g,'<div class="locked">'+teamA+'</div>').replace(/<div class="locked">Sixers<\/div>/g,'<div class="locked">'+teamB+'</div>').replace(/<option>Blitzwolwe<\/option>/g,'<option>'+teamA+'</option>').replace(/<option>Sixers<\/option>/g,'<option>'+teamB+'</option>');
+  html=html.replace('Plaaslike toetsweergawe • wedstrydinstellings is deur Admin vooraf bepaal','O/6 Alpha & Omega • wedstrydinstellings is deur Admin vooraf bepaal');
+  frame.srcdoc=html;
+  frame.onload=function(){try{
+   const stateJson=JSON.stringify(backup.state),code='state='+stateJson+'; undoStack=[]; if(state.batting===MATCH.teamA){document.getElementById("tossWinner").value=MATCH.teamA;document.getElementById("tossDecision").value="BAT"}else if(state.batting===MATCH.teamB){document.getElementById("tossWinner").value=MATCH.teamB;document.getElementById("tossDecision").value="BAT"} render(); if(state.pendingFielder&&state.dismissalType){openFielderChooser(state.dismissalType)} else if(state.pendingDismissal){buildDismissalChoices();document.getElementById("wicketPanel").classList.remove("hidden")} else if(state.pendingNewBatter){document.getElementById("newBatterPanel").classList.remove("hidden");promptNew(state.striker||"Kolwer")} else if(!state.striker||!state.nonStriker){openPair()} else if(!state.bowler){openBowler()} render(); document.getElementById("status").textContent="Gestoorde Vikings vs Dragons wedstryd suksesvol herstel. Jy kan voortgaan waar jy opgehou het."; document.getElementById("status").className="banner blue";';
+   frame.contentWindow.eval(code);boot.style.display='none';frame.style.display='block';
+  }catch(e){boot.textContent='Herstel het misluk: '+(e.message||e);console.error(e)}};
+ }catch(e){boot.textContent='Fout: '+(e.message||String(e));boot.style.color='#b42318';console.error(e)}
+})();
 </script>
 </body>
 </html>
