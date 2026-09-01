@@ -2,16 +2,17 @@
 <html lang="af">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Junior Krieket – O/6 Telkaart</title></head>
 <body style="margin:0;background:#eef2f6;font-family:system-ui,sans-serif">
+<!-- Cloudflare production redeploy marker: O6 V19 compatibility route -->
 <div id="boot" style="max-width:900px;margin:40px auto;background:#fff;border-radius:16px;padding:24px;font-weight:700">Laai O/6 telkaart…</div>
 <script>
 'use strict';
 (function(){
  const q=new URLSearchParams(location.search),id=q.get('match');
- if(!id){location.replace('scorer-o6-v20?start=1&v=32');return;}
+ if(!id){location.replace('scorer-o6-v20?start=1&v=33');return;}
  // V19 is now only a compatibility entry point. Always route into the
  // current V20 recovery engine so the saved match state and database teams
  // are loaded instead of the old Blitzwolwe/Sixers shell.
- location.replace('scorer-o6-v20?match='+encodeURIComponent(id)+'&resume=1&v=32&ts='+Date.now());
+ location.replace('scorer-o6-v20?match='+encodeURIComponent(id)+'&resume=1&v=33&ts='+Date.now());
 })();
 </script>
 </body>
