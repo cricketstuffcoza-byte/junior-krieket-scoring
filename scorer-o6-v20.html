@@ -39,31 +39,13 @@
   html=html.replace(/const PLAYERS=\{[\s\S]*?\};\s*const RULES=/,'const PLAYERS='+JSON.stringify(byTeam)+';\nconst RULES=');
   html=html.replace(/<div class="locked">Blitzwolwe<\/div>/g,'<div class="locked">'+teamA+'</div>').replace(/<div class="locked">Sixers<\/div>/g,'<div class="locked">'+teamB+'</div>').replace(/<option>Blitzwolwe<\/option>/g,'<option>'+teamA+'</option>').replace(/<option>Sixers<\/option>/g,'<option>'+teamB+'</option>');
   html=html.replace('Plaaslike toetsweergawe • wedstrydinstellings is deur Admin vooraf bepaal','O/6 Alpha & Omega • wedstrydinstellings is deur Admin vooraf bepaal');
-
-  // Restore INSIDE the scorer iframe. The old parent-window eval could not access
-  // the scorer's lexical state/render/openPair bindings on Safari/iOS.
-  const stateJson=JSON.stringify(backup.state).replace(/<\/script/gi,'<\\/script');
-  const restoreScript=`<script>
-(function(){
- try{
-  state=${stateJson};
-  undoStack=[];
-  state.striker=null;state.nonStriker=null;state.bowler=null;
-  if(typeof render==='function')render();
-  if(state.batting){var tw=document.getElementById('tossWinner'),td=document.getElementById('tossDecision');if(tw)tw.value=state.batting;if(td)td.value='BAT';}
-  if(state.pendingFielder&&state.dismissalType&&typeof openFielderChooser==='function')openFielderChooser(state.dismissalType);
-  else if(state.pendingDismissal&&typeof buildDismissalChoices==='function'){buildDismissalChoices();document.getElementById('wicketPanel').classList.remove('hidden');}
-  else if(state.pendingNewBatter&&typeof promptNew==='function'){document.getElementById('newBatterPanel').classList.remove('hidden');promptNew(state.striker||'Kolwer');}
-  else if(typeof openPair==='function')openPair();
-  if(typeof render==='function')render();
-  var s=document.getElementById('status');if(s){s.textContent='Gestoorde Vikings vs Dragons wedstryd suksesvol herstel. Jy kan voortgaan waar jy opgehou het. Kies nou die nuwe kolfpaar.';s.className='banner blue';}
-  parent.postMessage({type:'SCORER_RESTORE_OK'},'*');
- }catch(e){console.error('RESTORE ERROR',e);parent.postMessage({type:'SCORER_RESTORE_ERROR',message:e&&e.message?e.message:String(e)},'*');}
-})();
-</script>`;
-  html=html.replace('</body>',restoreScript+'\n</body>');
-  window.addEventListener('message',function(ev){if(!ev.data)return;if(ev.data.type==='SCORER_RESTORE_OK'){boot.style.display='none';frame.style.display='block';}if(ev.data.type==='SCORER_RESTORE_ERROR'){boot.textContent='Herstel het misluk: '+ev.data.message;boot.style.color='#b42318';}});
   frame.srcdoc=html;
+  frame.onload=function(){try{
+   const stateJson=JSON.stringify(backup.state);
+   const forceNextPair=(id==='54e506e4-dcdc-478c-b223-c748e784f5de');
+   const code='state='+stateJson+'; undoStack=[]; if(state.batting===MATCH.teamA){document.getElementById("tossWinner").value=MATCH.teamA;document.getElementById("tossDecision").value="BAT"}else if(state.batting===MATCH.teamB){document.getElementById("tossWinner").value=MATCH.teamB;document.getElementById("tossDecision").value="BAT"} render(); if(state.pendingFielder&&state.dismissalType){openFielderChooser(state.dismissalType)} else if(state.pendingDismissal){buildDismissalChoices();document.getElementById("wicketPanel").classList.remove("hidden")} else if(state.pendingNewBatter){document.getElementById("newBatterPanel").classList.remove("hidden");promptNew(state.striker||"Kolwer")} else if(state.pendingCoachThrow){render()} else if('+forceNextPair+'){state.striker=null;state.nonStriker=null;state.bowler=null;render();openPair()} else if(!state.striker||!state.nonStriker){openPair()} else if(!state.bowler){openBowler()} render(); document.getElementById("status").textContent="Gestoorde Vikings vs Dragons wedstryd suksesvol herstel. Jy kan voortgaan waar jy opgehou het. Kies nou die nuwe kolfpaar."; document.getElementById("status").className="banner blue";';
+   frame.contentWindow.eval(code);boot.style.display='none';frame.style.display='block';
+  }catch(e){boot.textContent='Herstel het misluk: '+(e.message||e);console.error(e)}};
  }catch(e){boot.textContent='Fout: '+(e.message||String(e));boot.style.color='#b42318';console.error(e)}
 })();
 </script>
