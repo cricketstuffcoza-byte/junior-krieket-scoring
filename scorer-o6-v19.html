@@ -2,11 +2,17 @@
 <html lang="af">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Junior Krieket – O/6 Telkaart</title></head>
 <body style="margin:0;background:#eef2f6;font-family:system-ui,sans-serif">
-<div style="max-width:900px;margin:40px auto;background:#fff;border-radius:16px;padding:24px;font-weight:700">Laai O/6 telkaart…</div>
+<div id="boot" style="max-width:900px;margin:40px auto;background:#fff;border-radius:16px;padding:24px;font-weight:700">Laai O/6 telkaart…</div>
 <script>
-const q=new URLSearchParams(location.search),match=q.get('match');
-if(match) location.replace('scorer-o6-v20.html?match='+encodeURIComponent(match)+'&resume=1&v=30');
-else location.replace('scorer-o6-v20.html');
+'use strict';
+(function(){
+ const q=new URLSearchParams(location.search),id=q.get('match');
+ if(!id){location.replace('scorer-o6.html?v=31');return;}
+ // Always enter the real scorer engine. Cache-bust the target so the old V19
+ // shell cannot remain on screen. scorer-o6.html contains the restore hook for
+ // the Vikings vs Dragons match and loads the correct stored match state.
+ location.replace('scorer-o6.html?match='+encodeURIComponent(id)+'&resume=1&v=31&ts='+Date.now());
+})();
 </script>
 </body>
 </html>
