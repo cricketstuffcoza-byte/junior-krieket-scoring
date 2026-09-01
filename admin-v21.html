@@ -23,7 +23,7 @@ html,body{margin:0;width:100%;height:100%;background:#eef2f6}
   const SUPABASE_KEY='sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH';
   let patched=false;
 
-  const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const esc=v=>String(v??'').replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[m]));
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
   async function patchV21(){
@@ -38,8 +38,6 @@ html,body{margin:0;width:100%;height:100%;background:#eef2f6}
     const badge=d.querySelector('#auth .pill'); if(badge)badge.textContent='ADMIN V21';
     const title=d.querySelector('#app h1'); if(title)title.textContent='🔐 Admin Portaal V21';
 
-    // Use a real Supabase client in the iframe context. Do not rely on window.db:
-    // admin-v17 declares its client with a top-level const, so it is not a window property.
     const sb=w.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
     const matches=d.getElementById('matches');
@@ -69,7 +67,6 @@ html,body{margin:0;width:100%;height:100%;background:#eef2f6}
     }
     await loadCoaches();
 
-    // V21 owns the match-list refresh so a newly-created match is immediately visible.
     async function refreshMatchList(){
       const box=d.getElementById('matchTable');
       if(!box)return;
@@ -88,9 +85,27 @@ html,body{margin:0;width:100%;height:100%;background:#eef2f6}
           const date=m.match_date||'—';
           const status=m.status||'—';
           const result=m.result||m.outcome||status||'—';
-          return '<tr><td>'+esc(date)+'</td><td>'+esc(a)+' vs '+esc(b)+'</td><td>'+esc(venue)+'</td><td>'+esc(status)+'</td><td>'+esc(result)+'</td></tr>';
+          return '<tr><td>'+esc(date)+'</td><td>'+esc(a)+' vs '+esc(b)+'</td><td>'+esc(venue)+'</td><td>'+esc(status)+'</td><td>'+esc(result)+'</td><td style="white-space:nowrap"><button type="button" data-v21-delete="'+esc(m.id)+'" style="background:#fee2e2;color:#991b1b;border:0;border-radius:8px;padding:7px 10px;font-weight:800;cursor:pointer">🗑️ Delete</button></td></tr>';
         }).join('');
-        box.innerHTML='<table><thead><tr><th>Datum</th><th>Wedstryd</th><th>Venue</th><th>Status</th><th>Uitslag/status</th></tr></thead><tbody>'+(rows||'<tr><td colspan="5">Geen wedstryde.</td></tr>')+'</tbody></table>';
+        box.innerHTML='<table><thead><tr><th>Datum</th><th>Wedstryd</th><th>Venue</th><th>Status</th><th>Uitslag/status</th><th>Aksies</th></tr></thead><tbody>'+(rows||'<tr><td colspan="6">Geen wedstryde.</td></tr>')+'</tbody></table>';
+
+        d.querySelectorAll('[data-v21-delete]').forEach(btn=>btn.addEventListener('click',async()=>{
+          const id=btn.getAttribute('data-v21-delete');
+          const row=btn.closest('tr');
+          const matchName=row?.children?.[1]?.textContent||'Hierdie wedstryd';
+          const matchDate=row?.children?.[0]?.textContent||'';
+          if(!confirm('DELETE hierdie wedstryd?\n\n'+matchName+'\n'+matchDate+'\n\nAlle gekoppelde scorer-data vir hierdie wedstryd sal ook verwyder word.\n\nHierdie aksie kan nie ongedaan gemaak word nie.'))return;
+          btn.disabled=true;btn.textContent='Delete…';
+          try{
+            const {error}=await sb.from('matches').delete().eq('id',id);
+            if(error)throw error;
+            await refreshMatchList();
+            if(typeof w.dashboard==='function')await w.dashboard();
+          }catch(err){
+            btn.disabled=false;btn.textContent='🗑️ Delete';
+            alert('Kon wedstryd nie delete nie: '+(err.message||err));
+          }
+        }));
       }catch(e){
         box.innerHTML='<div class="status error">Kon wedstrydlys nie laai nie: '+esc(e.message||e)+'</div>';
       }
@@ -129,7 +144,6 @@ html,body{margin:0;width:100%;height:100%;background:#eef2f6}
         const {error}=await sb.from('matches').insert({fixture_code:fixture,age_group:age,team_a_id:a,team_b_id:b,match_date:date,match_time:matchTime,venue:venueName,status:'SCHEDULED',coach_user_id:coach});
         if(error)throw error;
 
-        // Refresh from the database after the insert. This is the important V21 fix.
         await refreshMatchList();
         setMsg('Wedstryd en afrigter suksesvol geskep.','success');
         ['matchA','matchB','matchDate','matchTime'].forEach(id=>{const x=d.getElementById(id);if(x)x.value=''});
@@ -140,7 +154,6 @@ html,body{margin:0;width:100%;height:100%;background:#eef2f6}
       }finally{fresh.disabled=false;fresh.textContent='Skep Wedstryd'}
     });
 
-    // Load the list immediately and also when the user returns to Wedstryde.
     await refreshMatchList();
     d.querySelectorAll('#tabs button').forEach(btn=>btn.addEventListener('click',()=>{if(btn.dataset.tab==='matches')refreshMatchList()}));
     return true;
