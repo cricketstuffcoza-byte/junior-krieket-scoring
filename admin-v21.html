@@ -22,155 +22,81 @@ html,body{margin:0;width:100%;height:100%;background:#eef2f6}
   const SUPABASE_URL='https://moomommajyldjquncnrd.supabase.co';
   const SUPABASE_KEY='sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH';
   let patched=false;
-
   const esc=v=>String(v??'').replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[m]));
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+  async function installCoachPasswordReset(w,d,sb){
+    const coaches=d.getElementById('coaches');
+    if(!coaches||d.getElementById('v21CoachPasswordReset'))return;
+    const card=d.createElement('div');
+    card.id='v21CoachPasswordReset';
+    card.className='card';
+    card.style.marginTop='14px';
+    card.innerHTML='<div class="top"><div><h2>🔑 Stel Afrigter-wagwoord</h2><p class="muted">Gebruik hierdie veilige admin-funksie om ’n bestaande afrigter se Supabase Auth-wagwoord te verander.</p></div></div><div class="grid"><div><label>Afrigter</label><select id="v21ResetCoach"><option>— Laai afrigters… —</option></select></div><div><label>Nuwe wagwoord</label><input id="v21ResetPassword" type="password" minlength="6" value="Smashers"></div></div><div class="actions"><button class="primary" id="v21ResetCoachBtn">Stel wagwoord</button></div><p id="v21ResetCoachMsg" class="small"></p>';
+    coaches.appendChild(card);
+    const sel=d.getElementById('v21ResetCoach'),pw=d.getElementById('v21ResetPassword'),btn=d.getElementById('v21ResetCoachBtn'),msg=d.getElementById('v21ResetCoachMsg');
+    const setMsg=(t,c)=>{msg.textContent=t;msg.className='small '+(c||'')};
+    async function load(){
+      try{
+        const {data,error}=await sb.from('user_profiles').select('user_id,full_name,active').eq('role','coach').eq('active',true).order('full_name');
+        if(error)throw error;
+        sel.innerHTML='<option value="">— Kies afrigter —</option>'+(data||[]).map(c=>'<option value="'+esc(c.user_id)+'">'+esc(c.full_name||'Afrigter')+'</option>').join('');
+        const g=(data||[]).find(c=>String(c.full_name||'').toLowerCase()==='gys coetzee');
+        if(g)sel.value=g.user_id;
+      }catch(e){sel.innerHTML='<option value="">— Kon afrigters nie laai nie —</option>';setMsg('Kon afrigters nie laai nie: '+(e.message||e),'error')}
+    }
+    btn.addEventListener('click',async()=>{
+      const user_id=sel.value,password=pw.value;
+      if(!user_id)return setMsg('Kies asseblief ’n afrigter.','error');
+      if(password.length<6)return setMsg('Die wagwoord moet minstens 6 karakters wees.','error');
+      if(!confirm('Stel die wagwoord vir die gekose afrigter?'))return;
+      btn.disabled=true;btn.textContent='Stel wagwoord…';setMsg('Werk…','info');
+      try{
+        const {data,error}=await sb.functions.invoke('admin-reset-coach-password',{body:{user_id,password}});
+        if(error)throw error;
+        if(data?.error)throw new Error(data.error);
+        setMsg('Wagwoord suksesvol verander vir '+(data?.full_name||'die afrigter')+'.','success');
+      }catch(e){setMsg('Kon wagwoord nie verander nie: '+(e.message||e),'error')}
+      finally{btn.disabled=false;btn.textContent='Stel wagwoord'}
+    });
+    await load();
+  }
 
   async function patchV21(){
     if(patched)return;
     const w=frame.contentWindow;
     const d=frame.contentDocument;
     if(!w||!d||!w.supabase||typeof w.supabase.createClient!=='function')return false;
-
     patched=true;
     loading.style.display='none';
     try{d.title='Junior Krieket – Admin Portaal V21'}catch(e){}
     const badge=d.querySelector('#auth .pill'); if(badge)badge.textContent='ADMIN V21';
     const title=d.querySelector('#app h1'); if(title)title.textContent='🔐 Admin Portaal V21';
-
     const sb=w.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+    await installCoachPasswordReset(w,d,sb);
 
     const matches=d.getElementById('matches');
     const grid=matches?.querySelector('.grid3');
     const createButton=d.getElementById('createMatch');
     if(!grid||!createButton)return true;
-
     let wrap=d.getElementById('v21CoachWrap');
     if(!wrap){
-      wrap=d.createElement('div');
-      wrap.className='v21coach';
-      wrap.id='v21CoachWrap';
-      wrap.style.gridColumn='1/-1';
+      wrap=d.createElement('div');wrap.className='v21coach';wrap.id='v21CoachWrap';wrap.style.gridColumn='1/-1';
       wrap.innerHTML='<label for="v21Coach">Afrigter vir hierdie wedstryd</label><select id="v21Coach"><option value="">— Laai afrigters… —</option></select><p class="small muted" style="margin-top:7px">Die afrigter moet reeds aan Span A of Span B toegewys wees.</p>';
       grid.appendChild(wrap);
     }
-
     const coachSelect=d.getElementById('v21Coach');
-    async function loadCoaches(){
-      try{
-        const {data,error}=await sb.from('user_profiles').select('user_id,full_name,active,role').eq('role','coach').eq('active',true).order('full_name');
-        if(error)throw error;
-        coachSelect.innerHTML='<option value="">— Kies afrigter —</option>'+(data||[]).map(c=>'<option value="'+esc(c.user_id)+'">'+esc(c.full_name||'Afrigter')+'</option>').join('');
-      }catch(e){
-        coachSelect.innerHTML='<option value="">— Kon afrigters nie laai nie —</option>';
-      }
-    }
+    async function loadCoaches(){try{const {data,error}=await sb.from('user_profiles').select('user_id,full_name,active,role').eq('role','coach').eq('active',true).order('full_name');if(error)throw error;coachSelect.innerHTML='<option value="">— Kies afrigter —</option>'+(data||[]).map(c=>'<option value="'+esc(c.user_id)+'">'+esc(c.full_name||'Afrigter')+'</option>').join('')}catch(e){coachSelect.innerHTML='<option value="">— Kon afrigters nie laai nie —</option>'}}
     await loadCoaches();
-
     async function refreshMatchList(){
-      const box=d.getElementById('matchTable');
-      if(!box)return;
-      try{
-        const [mr,tr]=await Promise.all([
-          sb.from('matches').select('*').order('match_date',{ascending:false}).order('match_time',{ascending:false}),
-          sb.from('teams').select('id,name')
-        ]);
-        if(mr.error)throw mr.error;
-        if(tr.error)throw tr.error;
-        const teamMap=new Map((tr.data||[]).map(t=>[String(t.id),t.name]));
-        const rows=(mr.data||[]).map(m=>{
-          const a=teamMap.get(String(m.team_a_id))||'Onbekend';
-          const b=teamMap.get(String(m.team_b_id))||'Onbekend';
-          const venue=m.venue||'—';
-          const date=m.match_date||'—';
-          const status=m.status||'—';
-          const result=m.result||m.outcome||status||'—';
-          return '<tr><td>'+esc(date)+'</td><td>'+esc(a)+' vs '+esc(b)+'</td><td>'+esc(venue)+'</td><td>'+esc(status)+'</td><td>'+esc(result)+'</td><td style="white-space:nowrap"><button type="button" data-v21-delete="'+esc(m.id)+'" style="background:#fee2e2;color:#991b1b;border:0;border-radius:8px;padding:7px 10px;font-weight:800;cursor:pointer">🗑️ Delete</button></td></tr>';
-        }).join('');
-        box.innerHTML='<table><thead><tr><th>Datum</th><th>Wedstryd</th><th>Venue</th><th>Status</th><th>Uitslag/status</th><th>Aksies</th></tr></thead><tbody>'+(rows||'<tr><td colspan="6">Geen wedstryde.</td></tr>')+'</tbody></table>';
-
-        d.querySelectorAll('[data-v21-delete]').forEach(btn=>btn.addEventListener('click',async()=>{
-          const id=btn.getAttribute('data-v21-delete');
-          const row=btn.closest('tr');
-          const matchName=row?.children?.[1]?.textContent||'Hierdie wedstryd';
-          const matchDate=row?.children?.[0]?.textContent||'';
-          if(!confirm('DELETE hierdie wedstryd?\n\n'+matchName+'\n'+matchDate+'\n\nAlle gekoppelde scorer-data vir hierdie wedstryd sal ook verwyder word.\n\nHierdie aksie kan nie ongedaan gemaak word nie.'))return;
-          btn.disabled=true;btn.textContent='Delete…';
-          try{
-            const {error}=await sb.from('matches').delete().eq('id',id);
-            if(error)throw error;
-            await refreshMatchList();
-            if(typeof w.dashboard==='function')await w.dashboard();
-          }catch(err){
-            btn.disabled=false;btn.textContent='🗑️ Delete';
-            alert('Kon wedstryd nie delete nie: '+(err.message||err));
-          }
-        }));
-      }catch(e){
-        box.innerHTML='<div class="status error">Kon wedstrydlys nie laai nie: '+esc(e.message||e)+'</div>';
-      }
-    }
-
-    // Make this renderer the authoritative V17 refreshMatchList implementation.
-    // V17 otherwise refreshes the table after startup/tab changes and removes the Delete column.
+      const box=d.getElementById('matchTable');if(!box)return;
+      try{const [mr,tr]=await Promise.all([sb.from('matches').select('*').order('match_date',{ascending:false}).order('match_time',{ascending:false}),sb.from('teams').select('id,name')]);if(mr.error)throw mr.error;if(tr.error)throw tr.error;const teamMap=new Map((tr.data||[]).map(t=>[String(t.id),t.name]));const rows=(mr.data||[]).map(m=>{const a=teamMap.get(String(m.team_a_id))||'Onbekend',b=teamMap.get(String(m.team_b_id))||'Onbekend',venue=m.venue||'—',date=m.match_date||'—',status=m.status||'—',result=m.result||m.outcome||status||'—';return '<tr><td>'+esc(date)+'</td><td>'+esc(a)+' vs '+esc(b)+'</td><td>'+esc(venue)+'</td><td>'+esc(status)+'</td><td>'+esc(result)+'</td><td style="white-space:nowrap"><button type="button" data-v21-delete="'+esc(m.id)+'" style="background:#fee2e2;color:#991b1b;border:0;border-radius:8px;padding:7px 10px;font-weight:800;cursor:pointer">🗑️ Delete</button></td></tr>'}).join('');box.innerHTML='<table><thead><tr><th>Datum</th><th>Wedstryd</th><th>Venue</th><th>Status</th><th>Uitslag/status</th><th>Aksies</th></tr></thead><tbody>'+(rows||'<tr><td colspan="6">Geen wedstryde.</td></tr>')+'</tbody></table>';d.querySelectorAll('[data-v21-delete]').forEach(btn=>btn.addEventListener('click',async()=>{const id=btn.getAttribute('data-v21-delete'),row=btn.closest('tr'),matchName=row?.children?.[1]?.textContent||'Hierdie wedstryd',matchDate=row?.children?.[0]?.textContent||'';if(!confirm('DELETE hierdie wedstryd?\n\n'+matchName+'\n'+matchDate+'\n\nAlle gekoppelde scorer-data vir hierdie wedstryd sal ook verwyder word.\n\nHierdie aksie kan nie ongedaan gemaak word nie.'))return;btn.disabled=true;btn.textContent='Delete…';try{const {error}=await sb.from('matches').delete().eq('id',id);if(error)throw error;await refreshMatchList();if(typeof w.dashboard==='function')await w.dashboard()}catch(err){btn.disabled=false;btn.textContent='🗑️ Delete';alert('Kon wedstryd nie delete nie: '+(err.message||err))}}))}catch(e){box.innerHTML='<div class="status error">Kon wedstrydlys nie laai nie: '+esc(e.message||e)+'</div>'}}
     w.refreshMatchList=refreshMatchList;
-
-    const originalButton=createButton;
-    const fresh=originalButton.cloneNode(true);
-    originalButton.replaceWith(fresh);
-    fresh.addEventListener('click',async function(e){
-      e.preventDefault();e.stopPropagation();
-      const age=d.getElementById('matchAge')?.value;
-      const a=d.getElementById('matchA')?.value;
-      const b=d.getElementById('matchB')?.value;
-      const date=d.getElementById('matchDate')?.value;
-      const time=d.getElementById('matchTime')?.value;
-      const venue=d.getElementById('matchVenue')?.value;
-      const coach=coachSelect.value;
-      const notice=d.getElementById('matchMsg');
-      const setMsg=(text,cls)=>{if(notice){notice.textContent=text;notice.className='small '+(cls||'')}};
-
-      if(!coach)return setMsg('Kies asseblief ’n afrigter vir hierdie wedstryd.','error');
-      if(!a||!b||a===b)return setMsg('Kies twee verskillende spanne.','error');
-      if(!date||!time)return setMsg('Kies asseblief datum en tyd.','error');
-      if(!venue)return setMsg('Kies asseblief ’n venue.','error');
-
-      fresh.disabled=true;fresh.textContent='Skep wedstryd…';
-      try{
-        const {data:assignments,error:assignError}=await sb.from('coach_teams').select('team_id').eq('coach_user_id',coach).eq('active',true);
-        if(assignError)throw assignError;
-        const allowed=new Set((assignments||[]).map(x=>String(x.team_id)));
-        if(!allowed.has(String(a))&&!allowed.has(String(b)))throw new Error('Die gekose afrigter is nie aan Span A of Span B toegewys nie.');
-
-        const venueName=d.getElementById('matchVenue')?.selectedOptions?.[0]?.textContent?.trim()||'';
-        const fixture='JK-'+String(date).replaceAll('-','')+'-'+Math.random().toString(36).slice(2,7).toUpperCase();
-        const matchTime=String(time).length===5?String(time)+':00':time;
-        const {error}=await sb.from('matches').insert({fixture_code:fixture,age_group:age,team_a_id:a,team_b_id:b,match_date:date,match_time:matchTime,venue:venueName,status:'SCHEDULED',coach_user_id:coach});
-        if(error)throw error;
-
-        await refreshMatchList();
-        setMsg('Wedstryd en afrigter suksesvol geskep.','success');
-        ['matchA','matchB','matchDate','matchTime'].forEach(id=>{const x=d.getElementById(id);if(x)x.value=''});
-        coachSelect.value='';
-        if(typeof w.dashboard==='function')w.dashboard();
-      }catch(err){
-        setMsg('Kon wedstryd nie skep nie: '+(err.message||err),'error');
-      }finally{fresh.disabled=false;fresh.textContent='Skep Wedstryd'}
-    });
-
-    await refreshMatchList();
-    d.querySelectorAll('#tabs button').forEach(btn=>btn.addEventListener('click',()=>{if(btn.dataset.tab==='matches')refreshMatchList()}));
-    return true;
+    const originalButton=createButton;const fresh=originalButton.cloneNode(true);originalButton.replaceWith(fresh);
+    fresh.addEventListener('click',async function(e){e.preventDefault();e.stopPropagation();const age=d.getElementById('matchAge')?.value,a=d.getElementById('matchA')?.value,b=d.getElementById('matchB')?.value,date=d.getElementById('matchDate')?.value,time=d.getElementById('matchTime')?.value,venue=d.getElementById('matchVenue')?.value,coach=coachSelect.value,notice=d.getElementById('matchMsg'),setMsg=(text,cls)=>{if(notice){notice.textContent=text;notice.className='small '+(cls||'')}};if(!coach)return setMsg('Kies asseblief ’n afrigter vir hierdie wedstryd.','error');if(!a||!b||a===b)return setMsg('Kies twee verskillende spanne.','error');if(!date||!time)return setMsg('Kies asseblief datum en tyd.','error');if(!venue)return setMsg('Kies asseblief ’n venue.','error');fresh.disabled=true;fresh.textContent='Skep wedstryd…';try{const {data:assignments,error:assignError}=await sb.from('coach_teams').select('team_id').eq('coach_user_id',coach).eq('active',true);if(assignError)throw assignError;const allowed=new Set((assignments||[]).map(x=>String(x.team_id)));if(!allowed.has(String(a))&&!allowed.has(String(b)))throw new Error('Die gekose afrigter is nie aan Span A of Span B toegewys nie.');const venueName=d.getElementById('matchVenue')?.selectedOptions?.[0]?.textContent?.trim()||'',fixture='JK-'+String(date).replaceAll('-','')+'-'+Math.random().toString(36).slice(2,7).toUpperCase(),matchTime=String(time).length===5?String(time)+':00':time,{error}=await sb.from('matches').insert({fixture_code:fixture,age_group:age,team_a_id:a,team_b_id:b,match_date:date,match_time:matchTime,venue:venueName,status:'SCHEDULED',coach_user_id:coach});if(error)throw error;await refreshMatchList();setMsg('Wedstryd en afrigter suksesvol geskep.','success');['matchA','matchB','matchDate','matchTime'].forEach(id=>{const x=d.getElementById(id);if(x)x.value=''});coachSelect.value='';if(typeof w.dashboard==='function')w.dashboard()}catch(err){setMsg('Kon wedstryd nie skep nie: '+(err.message||err),'error')}finally{fresh.disabled=false;fresh.textContent='Skep Wedstryd'}});
+    await refreshMatchList();d.querySelectorAll('#tabs button').forEach(btn=>btn.addEventListener('click',()=>{if(btn.dataset.tab==='matches')refreshMatchList()}));return true;
   }
-
-  frame.addEventListener('load',async function(){
-    for(let i=0;i<40;i++){
-      try{if(await patchV21())return}catch(e){console.error(e)}
-      await sleep(250);
-    }
-    loading.style.display='flex';
-    loading.querySelector('.box').innerHTML='<h1>Admin V21</h1><p class="error">Kon V21 nie voltooi laai nie.</p>';
-  });
+  frame.addEventListener('load',async function(){for(let i=0;i<40;i++){try{if(await patchV21())return}catch(e){console.error(e)}await sleep(250)}loading.style.display='flex';loading.querySelector('.box').innerHTML='<h1>Admin V21</h1><p class="error">Kon V21 nie voltooi laai nie.</p>'});
 })();
 </script>
 </body>
