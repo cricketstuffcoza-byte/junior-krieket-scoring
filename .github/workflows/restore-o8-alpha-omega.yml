@@ -49,3 +49,4 @@ jobs:
           git commit -m 'Fix O8 production boot binding' || exit 0
           git push
 # The payload is the exact user-approved Alpha/Omega HTML.
+# Trigger production restore after verified boot fix.
