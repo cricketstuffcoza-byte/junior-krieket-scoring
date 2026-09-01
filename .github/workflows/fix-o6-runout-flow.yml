@@ -21,16 +21,14 @@ jobs:
           from pathlib import Path
           p = Path('scorer-o6-v19.html')
           s = p.read_text(encoding='utf-8')
-          marker = "render();\\n})();<\\/script>`;"
+          marker = "render();})();<\\/script>`;"
           if marker not in s:
               raise SystemExit('V19 enhancement marker not found')
           patch = r'''render();
 
-// O6 MATCH CONTROLS PATCH V3
+// O6 MATCH CONTROLS PATCH V4
 (function(){
   'use strict';
-
-  // RUN OUT: selecting the batsman must open the existing fielder chooser.
   var runoutChoices=document.getElementById('v19RunoutChoices');
   if(runoutChoices){
     runoutChoices.addEventListener('click',function(ev){
@@ -42,9 +40,6 @@ jobs:
       if(typeof openFielderChooser==='function')openFielderChooser('RUN_OUT');
     },true);
   }
-
-  // Complete a U/6 run-out without removing the batsman, but still credit the
-  // selected fielder and move to a new bowler when this was the last legal ball.
   if(typeof finishRunout==='function'){
     var oldFinishRunout=finishRunout;
     finishRunout=function(){
@@ -56,53 +51,27 @@ jobs:
       if(typeof render==='function')render();
     };
   }
-
-  // Manual strike correction.
   function addStrikeSwitch(){
     if(document.getElementById('v19SwitchStrike'))return;
-    var host=document.getElementById('striker');
-    if(!host||!host.parentElement)return;
-    var b=document.createElement('button');
-    b.id='v19SwitchStrike';b.type='button';b.className='v19secondary';b.textContent='🔄 WISSEL STRIKE';b.style.marginTop='10px';
+    var host=document.getElementById('striker');if(!host||!host.parentElement)return;
+    var b=document.createElement('button');b.id='v19SwitchStrike';b.type='button';b.className='v19secondary';b.textContent='🔄 WISSEL STRIKE';b.style.marginTop='10px';
     b.addEventListener('click',function(){
       if(!state||!state.started||!state.striker||!state.nonStriker)return;
       if(state.pendingNewBatter||state.pendingDismissal||state.pendingFielder||state.pendingCoachThrow||state.pairLimitAccepted)return;
-      if(typeof snapshot==='function')snapshot();
-      [state.striker,state.nonStriker]=[state.nonStriker,state.striker];
-      if(typeof render==='function')render();
+      if(typeof snapshot==='function')snapshot();[state.striker,state.nonStriker]=[state.nonStriker,state.striker];if(typeof render==='function')render();
     });
     host.parentElement.appendChild(b);
   }
   addStrikeSwitch();
-
-  // End-of-over lock. The old scorer leaves state.bowler populated while the
-  // bowler chooser is open, which makes canBall() return true. Clear it until
-  // the new bowler is explicitly confirmed.
   if(typeof openBowler==='function'){
     var oldOpenBowler=openBowler;
-    openBowler=function(){
-      if(state)state.bowler=null;
-      oldOpenBowler();
-      if(typeof render==='function')render();
-    };
+    openBowler=function(){if(state)state.bowler=null;oldOpenBowler();if(typeof render==='function')render();};
   }
-  function guardBallEntry(ev){
-    var panel=document.getElementById('bowlerPanel');
-    if(panel&&!panel.classList.contains('hidden')){ev.preventDefault();ev.stopImmediatePropagation();}
-  }
+  function guardBallEntry(ev){var panel=document.getElementById('bowlerPanel');if(panel&&!panel.classList.contains('hidden')){ev.preventDefault();ev.stopImmediatePropagation();}}
   var normal=document.getElementById('normalButtons'),coach=document.getElementById('coachPanel');
-  if(normal)normal.addEventListener('click',guardBallEntry,true);
-  if(coach)coach.addEventListener('click',guardBallEntry,true);
-
+  if(normal)normal.addEventListener('click',guardBallEntry,true);if(coach)coach.addEventListener('click',guardBallEntry,true);
   var oldRender=render;
-  render=function(){
-    oldRender();
-    var sw=document.getElementById('v19SwitchStrike');
-    if(sw){
-      var bp=document.getElementById('bowlerPanel');
-      sw.disabled=!(state&&state.started&&state.striker&&state.nonStriker&&!state.pendingNewBatter&&!state.pendingDismissal&&!state.pendingFielder&&!state.pendingCoachThrow&&!state.pairLimitAccepted&&(!bp||bp.classList.contains('hidden')));
-    }
-  };
+  render=function(){oldRender();var sw=document.getElementById('v19SwitchStrike');if(sw){var bp=document.getElementById('bowlerPanel');sw.disabled=!(state&&state.started&&state.striker&&state.nonStriker&&!state.pendingNewBatter&&!state.pendingDismissal&&!state.pendingFielder&&!state.pendingCoachThrow&&!state.pairLimitAccepted&&(!bp||bp.classList.contains('hidden')));}};
   render();
 })();
 </script>`;'''
@@ -115,9 +84,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add scorer-o6-v19.html
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-            exit 0
-          fi
+          if git diff --cached --quiet; then echo "No changes to commit"; exit 0; fi
           git commit -m "Fix U6 runout fielder strike and over controls"
           git push
