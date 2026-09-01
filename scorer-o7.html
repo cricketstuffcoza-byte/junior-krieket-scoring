@@ -11,15 +11,22 @@
     for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
     if(!('DecompressionStream' in window))throw new Error('Hierdie blaaier ondersteun nie die nodige telkaart-kompressie nie.');
     const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-    const html=await new Response(stream).text();
+    let html=await new Response(stream).text();
+
+    // The scorer keeps S as a lexical `let`, so expose a safe read/write bridge
+    // inside the scorer's own script before adding the wrapper patch.
+    html=html.replace('let S = null;','let S = null; window.__o7GetState = () => S;');
+
     const injected=`<script>
       (function(){
         let targetDecisionMade=false;
         const originalAfterLegalBall=window.afterLegalBall;
         const originalEndInnings=window.endInnings;
+        const getState=()=>window.__o7GetState ? window.__o7GetState() : null;
 
         function showTargetChoice(){
-          if(!window.S || !S.I || S.innings!==2 || S.target==null || S.I.runs<S.target) return;
+          const S=getState();
+          if(!S || !S.I || S.innings!==2 || S.target==null || S.I.runs<S.target) return;
           const target=S.target;
           const runs=S.I.runs;
           const margin=Math.max(0,runs-target);
@@ -36,6 +43,8 @@
         }
 
         window.__o7FinishTarget=function(){
+          const S=getState();
+          if(!S)return;
           S.winner=S.bat;
           S.resultReason='target';
           originalEndInnings.call(window,'Target bereik · Wedstryd deur afrigter beëindig');
@@ -49,7 +58,8 @@
         };
 
         window.endInnings=function(reason){
-          if(window.S && S.innings===2 && S.target!=null && S.I && S.I.runs>=S.target && !targetDecisionMade){
+          const S=getState();
+          if(S && S.innings===2 && S.target!=null && S.I && S.I.runs>=S.target && !targetDecisionMade){
             targetDecisionMade=true;
             S.winner=S.bat;
             S.resultReason='target';
@@ -60,7 +70,8 @@
         };
 
         window.afterLegalBall=function(){
-          if(window.S && S.innings===2 && S.target!=null && S.I && S.I.runs>=S.target){
+          const S=getState();
+          if(S && S.innings===2 && S.target!=null && S.I && S.I.runs>=S.target){
             if(!targetDecisionMade){
               targetDecisionMade=true;
               S.winner=S.bat;
@@ -76,15 +87,16 @@
           return originalAfterLegalBall.apply(this,arguments);
         };
 
-        // Also handle a resumed innings that is already at/above target.
+        // Resumed match: if it is already at/above target, show the choice immediately.
         setTimeout(()=>{
-          if(window.S && S.innings===2 && S.target!=null && S.I && S.I.runs>=S.target && !targetDecisionMade){
+          const S=getState();
+          if(S && S.innings===2 && S.target!=null && S.I && S.I.runs>=S.target && !targetDecisionMade){
             targetDecisionMade=true;
             S.winner=S.bat;
             S.resultReason='target';
             showTargetChoice();
           }
-        },400);
+        },800);
 
         (function(){
           const matchId=new URLSearchParams(location.search).get('match');
