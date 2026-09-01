@@ -13,7 +13,6 @@ permissions:
 
 jobs:
   patch:
-    if: ${{ !contains(github.event.head_commit.message, 'Fix O6 match controls production') && !contains(github.event.head_commit.message, 'Fix O8 scorer production auth fallback') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout branch
@@ -21,7 +20,12 @@ jobs:
         with:
           ref: ${{ github.head_ref || github.ref_name }}
 
+      - name: Skip self-generated production patch commits
+        if: ${{ contains(github.event.head_commit.message, 'Fix O6 match controls production') || contains(github.event.head_commit.message, 'Fix O8 scorer production auth fallback') }}
+        run: echo "Self-generated patch commit; no further patching required."
+
       - name: Patch O6 match controls
+        if: ${{ !contains(github.event.head_commit.message, 'Fix O6 match controls production') && !contains(github.event.head_commit.message, 'Fix O8 scorer production auth fallback') }}
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -35,108 +39,67 @@ jobs:
 // O6 MATCH CONTROLS PATCH V2
 (function(){
   'use strict';
-
-  // RUN OUT: selecting the batsman must be followed by the fielder chooser.
   var runoutChoices = document.getElementById('v19RunoutChoices');
   if(runoutChoices){
     runoutChoices.addEventListener('click', function(ev){
       var btn = ev.target.closest ? ev.target.closest('button[data-v19-batter]') : null;
       if(!btn) return;
-      ev.preventDefault();
-      ev.stopImmediatePropagation();
+      ev.preventDefault(); ev.stopImmediatePropagation();
       state.pendingRunOutBatter = decodeURIComponent(btn.getAttribute('data-v19-batter'));
       document.getElementById('v19RunoutModal').classList.add('hidden');
       if(typeof openFielderChooser === 'function') openFielderChooser('RUN_OUT');
     }, true);
   }
-
-  // Ensure the V19 run-out completion also opens a new bowler chooser when
-  // the run-out is the last legal ball of an over.
   if(typeof finishRunout === 'function'){
     var originalFinishRunout = finishRunout;
     finishRunout = function(){
       originalFinishRunout();
       if(state && !state.completed && typeof team === 'function'){
-        var t = team();
-        if(t && t.legalBalls > 0 && t.legalBalls % R.legalPerOver === 0 && typeof openBowler === 'function') openBowler();
+        var t=team();
+        if(t && t.legalBalls>0 && t.legalBalls%R.legalPerOver===0 && typeof openBowler==='function') openBowler();
       }
-      if(typeof render === 'function') render();
+      if(typeof render==='function') render();
     };
   }
-
-  // Manual strike correction for match situations.
   function addStrikeSwitch(){
     if(document.getElementById('v19SwitchStrike')) return;
-    var host = document.getElementById('striker');
-    if(!host || !host.parentElement) return;
-    var b = document.createElement('button');
-    b.id = 'v19SwitchStrike';
-    b.type = 'button';
-    b.className = 'v19secondary';
-    b.textContent = '🔄 WISSEL STRIKE';
-    b.style.marginTop = '10px';
-    b.addEventListener('click', function(){
-      if(!state || !state.started || !state.striker || !state.nonStriker) return;
-      if(state.pendingNewBatter || state.pendingDismissal || state.pendingFielder || state.pendingCoachThrow || state.pairLimitAccepted) return;
-      if(typeof snapshot === 'function') snapshot();
-      [state.striker,state.nonStriker] = [state.nonStriker,state.striker];
-      if(typeof render === 'function') render();
+    var host=document.getElementById('striker'); if(!host||!host.parentElement)return;
+    var b=document.createElement('button'); b.id='v19SwitchStrike'; b.type='button'; b.className='v19secondary'; b.textContent='🔄 WISSEL STRIKE'; b.style.marginTop='10px';
+    b.addEventListener('click',function(){
+      if(!state||!state.started||!state.striker||!state.nonStriker)return;
+      if(state.pendingNewBatter||state.pendingDismissal||state.pendingFielder||state.pendingCoachThrow||state.pairLimitAccepted)return;
+      if(typeof snapshot==='function')snapshot(); [state.striker,state.nonStriker]=[state.nonStriker,state.striker]; if(typeof render==='function')render();
     });
     host.parentElement.appendChild(b);
   }
   addStrikeSwitch();
-
-  // End-of-over lock: while the new-bowler chooser is open, no ball-entry
-  // button may accept another delivery. state.bowler is cleared until the
-  // scorer confirms the new bowler.
-  if(typeof openBowler === 'function'){
-    var originalOpenBowler = openBowler;
-    openBowler = function(){
-      if(state) state.bowler = null;
-      originalOpenBowler();
-      if(typeof render === 'function') render();
-    };
+  if(typeof openBowler==='function'){
+    var originalOpenBowler=openBowler;
+    openBowler=function(){ if(state)state.bowler=null; originalOpenBowler(); if(typeof render==='function')render(); };
   }
-  function guardBallEntry(ev){
-    var panel = document.getElementById('bowlerPanel');
-    if(panel && !panel.classList.contains('hidden')){
-      ev.preventDefault();
-      ev.stopImmediatePropagation();
-    }
-  }
-  var normal = document.getElementById('normalButtons');
-  var coach = document.getElementById('coachPanel');
-  if(normal) normal.addEventListener('click', guardBallEntry, true);
-  if(coach) coach.addEventListener('click', guardBallEntry, true);
-
-  var oldRender = render;
-  render = function(){
-    oldRender();
-    var sw = document.getElementById('v19SwitchStrike');
-    if(sw){
-      var ok = !!(state && state.started && state.striker && state.nonStriker && !state.pendingNewBatter && !state.pendingDismissal && !state.pendingFielder && !state.pendingCoachThrow && !state.pairLimitAccepted && !(document.getElementById('bowlerPanel') && !document.getElementById('bowlerPanel').classList.contains('hidden')));
-      sw.disabled = !ok;
-    }
-  };
-  if(typeof render === 'function') render();
+  function guardBallEntry(ev){ var panel=document.getElementById('bowlerPanel'); if(panel&&!panel.classList.contains('hidden')){ev.preventDefault();ev.stopImmediatePropagation();} }
+  var normal=document.getElementById('normalButtons'),coach=document.getElementById('coachPanel');
+  if(normal)normal.addEventListener('click',guardBallEntry,true); if(coach)coach.addEventListener('click',guardBallEntry,true);
+  var oldRender=render;
+  render=function(){ oldRender(); var sw=document.getElementById('v19SwitchStrike'); if(sw){ var bp=document.getElementById('bowlerPanel'); sw.disabled=!(state&&state.started&&state.striker&&state.nonStriker&&!state.pendingNewBatter&&!state.pendingDismissal&&!state.pendingFielder&&!state.pendingCoachThrow&&!state.pairLimitAccepted&&(!bp||bp.classList.contains('hidden'))); } };
+  render();
 })();
 </script>`;'''
-          s = s.replace(marker, patch, 1)
+          s=s.replace(marker,patch,1)
           p.write_text(s)
           PY
 
       - name: Patch O8 scorer
+        if: ${{ !contains(github.event.head_commit.message, 'Fix O6 match controls production') && !contains(github.event.head_commit.message, 'Fix O8 scorer production auth fallback') }}
         continue-on-error: true
         run: python3 scripts/patch_o8_auth.py
 
       - name: Commit patched scorers
+        if: ${{ !contains(github.event.head_commit.message, 'Fix O6 match controls production') && !contains(github.event.head_commit.message, 'Fix O8 scorer production auth fallback') }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add scorer-o6-v19.html scorer-o8-v9.html
-          if git diff --cached --quiet; then
-            echo "No scorer changes required"
-            exit 0
-          fi
+          if git diff --cached --quiet; then echo "No scorer changes required"; exit 0; fi
           git commit -m "Fix O6 match controls production"
           git push origin HEAD:${{ github.head_ref || github.ref_name }}
