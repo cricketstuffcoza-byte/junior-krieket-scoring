@@ -1,0 +1,55 @@
+name: Fix O6 reset to new match
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch-reset:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source branch
+        uses: actions/checkout@v4
+        with:
+          ref: o6-alpha-omega
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Patch reset button
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          path = Path('Telkaart-O6-ALPHA-OMEGA-V16.html')
+          text = path.read_text(encoding='utf-8')
+
+          marker = '/* O6 V19 HARD RESET PATCH */'
+          if marker in text:
+              print('Reset patch already present.')
+              raise SystemExit(0)
+
+          patch = r'''\n<script>\n(function(){\n  'use strict';\n  // HERSTEL means a completely new match, not resume.\n  // Capture the click before the original reset/resume handler can run.\n  document.addEventListener('click', function(ev){\n    var btn = ev.target && ev.target.closest ? ev.target.closest('#reset') : null;\n    if(!btn) return;\n    ev.preventDefault();\n    ev.stopImmediatePropagation();\n    try { localStorage.clear(); } catch(e) {}\n    try { sessionStorage.clear(); } catch(e) {}\n    window.location.reload();\n  }, true);\n})();\n</script>\n<!-- O6 V19 HARD RESET PATCH -->\n'''
+
+          if '</body>' not in text:
+              raise SystemExit('Could not find </body> in source file.')
+
+          text = text.replace('</body>', patch + '</body>', 1)
+          path.write_text(text, encoding='utf-8')
+          print('Hard reset patch added.')
+
+      - name: Commit and push source patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Telkaart-O6-ALPHA-OMEGA-V16.html
+          if git diff --cached --quiet; then
+            echo 'No changes to commit.'
+          else
+            git commit -m 'Make U6 reset start a completely new match'
+            git push origin HEAD:o6-alpha-omega
+          fi
