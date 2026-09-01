@@ -1,4 +1,11 @@
 {
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/admin-v23.html",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/admin-v23.html",
