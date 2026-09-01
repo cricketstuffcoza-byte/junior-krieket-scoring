@@ -9,7 +9,7 @@
   "rewrites": [
     {
       "source": "/admin-v23.html",
-      "destination": "/admin-v24.html"
+      "destination": "/admin-v21.html"
     }
   ]
 }
