@@ -1,0 +1,41 @@
+<!doctype html><html lang="af"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Junior Krieket – Admin Portaal V24</title><style>*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#eef2f6;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033}.shell{max-width:1220px;margin:0 auto;padding:18px}.brand{background:#172033;color:#fff;border-radius:18px 18px 0 0;padding:22px 24px 10px;box-shadow:0 3px 16px #0001}.brand h1{margin:0;font-size:28px}.brand p{margin:7px 0 18px;color:#d5deea}.pill{display:inline-block;padding:5px 10px;border-radius:999px;background:#edf2f7;color:#172033;font-size:12px;font-weight:800}.frame{display:block;width:100%;height:calc(100vh - 92px);min-height:950px;border:0;border-radius:0 0 18px 18px;background:#eef2f6;box-shadow:0 3px 16px #0001}</style></head><body><div class="shell"><div class="brand"><h1>🔐 Admin Portaal V24</h1><p>Junior Krieket • Administrasie, spanne, spelers, wedstryde en ouerprofiele</p><span class="pill">V24 • LIVE DATABASE</span></div><iframe id="portal" class="frame" src="admin-v23-core.html" title="Junior Krieket Admin Portaal V24"></iframe></div>
+<script>
+(function(){
+const frame=document.getElementById('portal');
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+async function patch(){
+  const v23=frame.contentDocument;
+  if(!v23)return false;
+  let v21frame=v23.querySelector('#portal');
+  if(!v21frame)return false;
+  const v21=v21frame.contentDocument;
+  if(!v21)return false;
+  let v17frame=v21.querySelector('#v21Frame');
+  if(!v17frame)return false;
+  const d=v17frame.contentDocument;
+  if(!d||!d.getElementById('matchTable'))return false;
+  if(d.getElementById('v24DeletePatch'))return true;
+  const marker=d.createElement('div');marker.id='v24DeletePatch';marker.style.display='none';d.body.appendChild(marker);
+  const sb=d.defaultView.supabase.createClient('https://moomommajyldjquncnrd.supabase.co','sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH');
+  d.defaultView.loadMatches=async function(){
+    const{data,error}=await sb.from('matches').select('id,fixture_code,age_group,match_date,match_time,venue,status,result_type,result_reason,team_a_id,team_b_id,teams_a:teams!matches_team_a_id_fkey(name),teams_b:teams!matches_team_b_id_fkey(name)').order('match_date',{ascending:false}).limit(100);
+    if(error){d.getElementById('matchTable').innerHTML='<div class="status error">'+esc(error.message)+'</div>';return}
+    d.getElementById('matchTable').innerHTML='<table><tr><th>Datum</th><th>Wedstryd</th><th>Venue</th><th>Status</th><th>Uitslag/status</th><th>Aksies</th></tr>'+((data||[]).map(m=>`<tr><td>${esc(m.match_date)}</td><td>${esc(m.teams_a?.name||'Span A')} vs ${esc(m.teams_b?.name||'Span B')}</td><td>${esc(m.venue)}</td><td>${esc(m.status)}</td><td>${esc(m.result_type||'')} ${esc(m.result_reason||'')}</td><td style="white-space:nowrap"><button class="danger mini" data-v24-delete="${esc(m.id)}">🗑️ Delete</button></td></tr>`).join('')||'<tr><td colspan="6">Geen wedstryde nie.</td></tr>')+'</table>';
+    d.querySelectorAll('[data-v24-delete]').forEach(btn=>btn.onclick=async()=>{
+      const id=btn.dataset.v24Delete;const row=btn.closest('tr');const label=row?.children?.[1]?.textContent||'Hierdie wedstryd';const date=row?.children?.[0]?.textContent||'';
+      if(!confirm(`Delete hierdie wedstryd?\n\n${label}\n${date}\n\nAlle gekoppelde scorer-data vir hierdie wedstryd sal ook verwyder word.`))return;
+      btn.disabled=true;btn.textContent='Delete…';
+      const{error}=await sb.from('matches').delete().eq('id',id);
+      if(error){btn.disabled=false;btn.textContent='🗑️ Delete';alert('Kon wedstryd nie delete nie: '+error.message);return}
+      if(typeof d.defaultView.msg==='function')d.defaultView.msg('matchMsg','Wedstryd suksesvol deleted.','success');
+      await d.defaultView.loadMatches();
+      if(typeof d.defaultView.dashboard==='function')await d.defaultView.dashboard();
+    });
+  };
+  await d.defaultView.loadMatches();
+  return true;
+}
+frame.addEventListener('load',async()=>{for(let i=0;i<80;i++){try{if(await patch())return}catch(e){}await sleep(250)}});
+})();
+</script></body></html>
