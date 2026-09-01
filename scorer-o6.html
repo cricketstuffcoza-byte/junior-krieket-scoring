@@ -1,9 +1,6 @@
 <!doctype html>
 <html lang="af">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Junior Krieket – O/6 Telkaart</title>
-</head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Junior Krieket – O/6 Telkaart</title></head>
 <body style="margin:0;background:#eef2f6;font-family:system-ui,sans-serif">
 <div id="boot" style="max-width:900px;margin:40px auto;background:#fff;border-radius:16px;padding:24px;font-weight:700">Laai O/6 telkaart…</div>
 <script>
@@ -17,25 +14,6 @@
   const savedKey='junior_krieket_v19_saved_'+id;
   const presenceKey='junior_krieket_v19_presence_'+id;
   try{
-    // FIRST restore the verified historical backup, before loading the scoring engine.
-    // This is critical: the engine reads localStorage during its own startup.
-    if(id==='54e506e4-dcdc-478c-b223-c748e784f5de'){
-      const rr=await fetch('./restore-vikings-dragons.html?data='+Date.now(),{cache:'no-store'});
-      if(rr.ok){
-        const txt=await rr.text();
-        const m=txt.match(/const DATA='([^']+)'/);
-        if(m){
-          const raw=atob(m[1]);
-          const bytes=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
-          const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-          const backup=JSON.parse(await new Response(stream).text());
-          localStorage.setItem(savedKey,JSON.stringify(backup));
-          localStorage.setItem(presenceKey,JSON.stringify({A:['De Wet Cilliers','Drikus Venter','Heinro Michau','Henrique Bronkhorst','Joshua van Staden','Juandré Van Loggerenberg','Kai van Schoor','Ryan Nolte','Zayn Steynberg'],B:['Caelem Meeling','CJ Kruger','DeAndre Joubert','Edward Nienaber','Jacques Marais','Keegan Kruger','Lehan Benadie','Preston Kruger','Tristan Theron']}));
-          localStorage.setItem('junior_krieket_v19_restore_ready_'+id,'1');
-        }
-      }
-    }
-
     const mRes=await fetch(SB+'/rest/v1/matches?select=id,team_a_id,team_b_id,match_date,match_time,venue,age_group,first_batting_team_id,second_batting_team_id,status&id=eq.'+encodeURIComponent(id),{headers:H,cache:'no-store'});
     if(!mRes.ok)throw Error('Die wedstryd kon nie gelaai word nie.');
     const match=(await mRes.json())[0];
@@ -52,7 +30,21 @@
     const byTeam={};
     byTeam[teamA]=players.filter(x=>x.team_id===match.team_a_id).map(x=>[x.first_name,x.surname].filter(Boolean).join(' ')).filter(Boolean);
     byTeam[teamB]=players.filter(x=>x.team_id===match.team_b_id).map(x=>[x.first_name,x.surname].filter(Boolean).join(' ')).filter(Boolean);
-
+    if(id==='54e506e4-dcdc-478c-b223-c748e784f5de'){
+      const rr=await fetch('./restore-vikings-dragons.html?data='+Date.now(),{cache:'no-store'});
+      if(rr.ok){
+        const txt=await rr.text();
+        const m=txt.match(/const DATA='([^']+)'/);
+        if(m){
+          const raw=atob(m[1]);
+          const bytes=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
+          const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+          const backup=JSON.parse(await new Response(stream).text());
+          localStorage.setItem(savedKey,JSON.stringify(backup));
+          localStorage.setItem(presenceKey,JSON.stringify({A:['De Wet Cilliers','Drikus Venter','Heinro Michau','Henrique Bronkhorst','Joshua van Staden','Juandré Van Loggerenberg','Kai van Schoor','Ryan Nolte','Zayn Steynberg'],B:['Caelem Meeling','CJ Kruger','DeAndre Joubert','Edward Nienaber','Jacques Marais','Keegan Kruger','Lehan Benadie','Preston Kruger','Tristan Theron']}));
+        }
+      }
+    }
     const coreRes=await fetch('./o6-v19-core.html?core='+Date.now(),{cache:'no-store'});
     if(!coreRes.ok)throw Error('Die O/6 telkaart-kern kon nie gelaai word nie.');
     let html=await coreRes.text();
@@ -64,6 +56,8 @@
     html=html.replace(/<option>Blitzwolwe<\/option>/g,'<option>'+teamA+'</option>');
     html=html.replace(/<option>Sixers<\/option>/g,'<option>'+teamB+'</option>');
     html=html.replace('Plaaslike toetsweergawe • wedstrydinstellings is deur Admin vooraf bepaal','O/6 Alpha & Omega • wedstrydinstellings is deur Admin vooraf bepaal');
+    const restoreScript=`<script>(function(){\n'use strict';\ntry{\n const id=${JSON.stringify(id)};\n const raw=localStorage.getItem('junior_krieket_v19_saved_'+id);\n if(!raw)return;\n const saved=JSON.parse(raw);\n if(!saved||!saved.state||!saved.state.started)return;\n state=saved.state;\n undoStack=[];\n const set=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v};\n if(state.batting===MATCH.teamA){set('tossWinner',MATCH.teamA);set('tossDecision','BAT')}else if(state.batting===MATCH.teamB){set('tossWinner',MATCH.teamB);set('tossDecision','BAT')}\n render();\n if(state.pendingFielder&&state.dismissalType){openFielderChooser(state.dismissalType)}\n else if(state.pendingDismissal){buildDismissalChoices();document.getElementById('wicketPanel').classList.remove('hidden')}\n else if(state.pendingNewBatter){document.getElementById('newBatterPanel').classList.remove('hidden');promptNew(state.striker||'Kolwer')}\n else if(state.pendingCoachThrow){render()}\n else if(!state.striker||!state.nonStriker){openPair()}\n else if(!state.bowler){openBowler()}\n render();\n document.getElementById('status').textContent='Gestoorde wedstryd suksesvol herstel. Jy kan voortgaan waar jy opgehou het.';\n document.getElementById('status').className='banner blue';\n}catch(e){console.error('Resume failed',e)}})();<\/script>`;
+    html=html.replace('</body>',restoreScript+'</body>');
     document.open();document.write(html);document.close();
   }catch(e){boot.textContent='Fout: '+(e.message||String(e));boot.style.color='#b42318';console.error(e)}
 })();
