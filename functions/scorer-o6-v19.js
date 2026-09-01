@@ -104,6 +104,50 @@ function byId(id){return document.getElementById(id)}
   byId('o6PC').addEventListener('click',function(){function pick(id){return Array.from(byId(id).querySelectorAll('input:checked')).map(x=>x.dataset.name)}const a=pick('o6PA'),b=pick('o6PB');if(a.length<2||b.length<2){byId('o6PE').textContent='Elke span moet minstens twee beskikbare spelers hê.';return}PLAYERS[A]=a;PLAYERS[B]=b;try{localStorage.setItem(key,JSON.stringify({A:a,B:b}))}catch(e){}modal.classList.add('hidden');start.onclick=null;const old=window.start;/* call original function declaration directly */if(typeof old==='function')old()});
 })();
 
+// Final uneven U/6 pair: if the scorer is asking for the player who returns
+// after the last unused player is introduced, the returning player may also be
+// one of the two batters who are still active from the previous pair. The core
+// `available()` list can exclude those active batters once their pair is marked
+// complete, so add them to the visible choices without changing dismissal state.
+(function allowCurrentBattersAsReturners(){
+  const panel=byId('pairPanel'), choices=byId('pairChoices');
+  if(!panel||!choices)return;
+  let lastSignature='';
+  const addChoice=function(name){
+    if(!name||Array.from(choices.children).some(el=>el.dataset.o6Returner===name||el.textContent.trim().replace(/^🔁 /,'')===name))return;
+    const b=document.createElement('button');
+    b.type='button'; b.className='btn choice'; b.dataset.o6Returner=name;
+    b.textContent='🔁 '+name+' (terugkerende kolwer)';
+    b.title='Hierdie kolwer is nog op die blad, maar mag vir die ongelyke kolfpaar terugkeer.';
+    b.addEventListener('click',function(){
+      const i=state.selectedPair.indexOf(name);
+      if(i>=0) state.selectedPair.splice(i,1);
+      else if(state.selectedPair.length<2) state.selectedPair.push(name);
+      Array.from(choices.children).forEach(x=>{
+        const n=x.dataset.o6Returner||x.textContent.trim().replace(/^🔁 /,'').replace(/ \(terugkerende kolwer\)$/,'').replace(/ ✓ \d+ balle voltooi$/,'');
+        x.classList.toggle('selected',state.selectedPair.includes(n));
+      });
+      byId('confirmPair').disabled=state.selectedPair.length!==2;
+    });
+    choices.appendChild(b);
+  };
+  const refresh=function(){
+    if(panel.classList.contains('hidden')){lastSignature='';return;}
+    const msg=(byId('pairMessage')?.textContent||'');
+    if(!msg.toLowerCase().includes('laaste ongelyke'))return;
+    if(!state||!state.striker&&!state.nonStriker)return;
+    const names=[state.striker,state.nonStriker].filter(Boolean);
+    const sig=names.join('|')+'|'+choices.children.length;
+    if(sig===lastSignature)return;
+    lastSignature=sig;
+    names.forEach(addChoice);
+  };
+  const obs=new MutationObserver(refresh);
+  obs.observe(choices,{childList:true,subtree:true});
+  obs.observe(panel,{attributes:true,attributeFilter:['class'],childList:true,subtree:true});
+  setInterval(refresh,250);
+})();
+
 // Manual strike switch, blocked while a decision panel is pending.
 (function strikeSwitch(){const host=byId('striker');if(!host||!host.parentElement||byId('o6SwitchStrike'))return;const b=document.createElement('button');b.id='o6SwitchStrike';b.type='button';b.className='btn';b.textContent='🔄 WISSEL STRIKE';b.style.marginTop='10px';b.onclick=function(){if(!state||!state.started||!state.striker||!state.nonStriker)return;if(state.pendingNewBatter||state.pendingDismissal||state.pendingFielder||state.pendingCoachThrow||state.pairLimitAccepted||!state.bowler)return;if(typeof snapshot==='function')snapshot();[state.striker,state.nonStriker]=[state.nonStriker,state.striker];render()};host.parentElement.appendChild(b)})();
 
@@ -113,7 +157,7 @@ document.getElementById('normalButtons')?.addEventListener('click',function(ev){
 // U/6 run-out flow: first choose which current batsman is out, then the fielder.
 (function runout(){
   const originalConfirmFielder=typeof confirmFielder==='function'?confirmFielder:null;
-  window.dismissalSelected=function(kind){state.pendingDismissal=false;state.dismissalType=kind;byId('wicketPanel')?.classList.add('hidden');if(kind!=='RUN_OUT'){if(kind==='CAUGHT')openFielderChooser(kind);else{const fromCoach=state.pendingCoachWicket;state.pendingCoachWicket=false;legal(0,fromCoach?'COACH WICKET':'WICKET',true,kind)};return}const modal=document.createElement('div');modal.id='o6Runout';modal.className='modal';const box=document.createElement('div');box.className='modalbox';box.innerHTML='<h2>🏃 RUN OUT – WATSE KOLWER IS UIT?</h2><div class="banner blue">Kies presies watter een van die huidige twee kolwers gerun-out is.</div><div id="o6ROC" class="choiceGrid"></div><button id="o6ROCANCEL" class="btn" type="button" style="margin-top:10px;width:100%">KANSELLEER</button>';modal.appendChild(box);document.body.appendChild(modal);const c=byId('o6ROC');[state.striker,state.nonStriker].filter(Boolean).forEach(function(n){const b=document.createElement('button');b.type='button';b.className='btn choice';b.textContent=n;b.onclick=function(){state.pendingRunOutBatter=n;modal.remove();openFielderChooser('RUN_OUT');render()};c.appendChild(b)});byId('o6ROCANCEL').onclick=function(){modal.remove();state.dismissalType=null;render()}};
+  window.dismissalSelected=function(kind){state.pendingDismissal=false;state.dismissalType=kind;byId('wicketPanel')?.classList.add('hidden');if(kind!=='RUN_OUT'){if(kind==='CAUGHT')openFielderChooser(kind);else{const fromCoach=state.pendingCoachWicket;state.pendingCoachWicket=false;legal(0,fromCoach?'COACH WICKET':'WICKET',true,kind);};return}const modal=document.createElement('div');modal.id='o6Runout';modal.className='modal';const box=document.createElement('div');box.className='modalbox';box.innerHTML='<h2>🏃 RUN OUT – WATSE KOLWER IS UIT?</h2><div class="banner blue">Kies presies watter een van die huidige twee kolwers gerun-out is.</div><div id="o6ROC" class="choiceGrid"></div><button id="o6ROCANCEL" class="btn" type="button" style="margin-top:10px;width:100%">KANSELLEER</button>';modal.appendChild(box);document.body.appendChild(modal);const c=byId('o6ROC');[state.striker,state.nonStriker].filter(Boolean).forEach(function(n){const b=document.createElement('button');b.type='button';b.className='btn choice';b.textContent=n;b.onclick=function(){state.pendingRunOutBatter=n;modal.remove();openFielderChooser('RUN_OUT');render()};c.appendChild(b)});byId('o6ROCANCEL').onclick=function(){modal.remove();state.dismissalType=null;render()}};
   window.confirmFielder=function(){if(state.dismissalType!=='RUN_OUT'){if(originalConfirmFielder)originalConfirmFielder();return}if(!state.selectedFielder)return;const target=state.pendingRunOutBatter||state.striker;const t=team(),bo=bowler(),f=state.bats[state.selectedFielder],bat=state.bats[target];snapshot();if(f)f.runOuts=(f.runOuts||0)+1;if(bat){bat.dismissals=(bat.dismissals||0)+1;bat.balls++;state.pairFaceBalls[target]=(state.pairFaceBalls[target]||0)+1}t.legalBalls++;if(bo){bo.legalBalls++;bo.wickets++;bo.dots++}t.wickets++;state.pairBalls++;state.log.push({inn:state.innings,ball:t.legalBalls,over:overs(t.legalBalls-1),face:target,runs:0,kind:'WICKET',wicket:true,dismissal:'RUN OUT'});state.pendingFielder=false;state.pendingCoachWicket=false;state.pendingRunOutBatter=null;state.dismissalType=null;state.selectedFielder=null;byId('fielderPanel')?.classList.add('hidden');afterLegal(true,target);render()};
 })();
 
