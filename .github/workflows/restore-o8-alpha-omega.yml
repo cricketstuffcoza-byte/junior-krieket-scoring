@@ -1,0 +1,37 @@
+name: Restore O8 Alpha Omega production scorecard
+on:
+  push:
+    paths:
+      - '.github/o8-alpha-omega-payload.b64'
+      - '.github/workflows/restore-o8-alpha-omega.yml'
+  workflow_dispatch:
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore exact Alpha Omega HTML
+        run: |
+          python - <<'PY'
+          import base64, gzip
+          from pathlib import Path
+          payload=Path('.github/o8-alpha-omega-payload.b64').read_text().strip()
+          data=gzip.decompress(base64.b64decode(payload))
+          Path('scorer-o8-v13.html').write_bytes(data)
+          print('restored bytes:', len(data))
+          PY
+      - name: Verify scorecard
+        run: |
+          grep -q 'O/8 T80 Krieket Telkaart' scorer-o8-v13.html
+          grep -q 'const MATCHES=\[\];' scorer-o8-v13.html
+          grep -q 'function loadO8Data' scorer-o8-v13.html
+          grep -q 'supabaseClient' scorer-o8-v13.html
+      - name: Commit production scorecard
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scorer-o8-v13.html
+          git commit -m 'Restore O8 Alpha Omega as production scorecard' || exit 0
+          git push
