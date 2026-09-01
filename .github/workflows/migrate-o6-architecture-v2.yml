@@ -1,0 +1,44 @@
+name: One-time O6 architecture migration v2
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  migrate:
+    if: contains(github.event.head_commit.message, '[migrate-o6-v2]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build authoritative O6 files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin o6-alpha-omega --depth=1
+          git show origin/o6-alpha-omega:Telkaart-O6-ALPHA-OMEGA-V16.html > o6-v19-core.html
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('scorer-o6-v19.html')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace("const BASE_URL='https://raw.githubusercontent.com/cricketstuffcoza-byte/junior-krieket-scoring/o6-alpha-omega/Telkaart-O6-ALPHA-OMEGA-V16.html';", "const BASE_URL='/o6-v19-core.html';")
+          s=s.replace("frame.src=URL.createObjectURL(new Blob([html],{type:'text/html'}));", "frame.srcdoc=html;")
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit and retry push
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'cricketstuffcoza-byte'
+          git config user.email 'cricketstuffcoza@gmail.com'
+          git rm -f .github/workflows/migrate-o6-architecture-v2.yml
+          git add scorer-o6-v19.html o6-v19-core.html
+          git commit -m 'Make O6 scorer deployment self-contained'
+          for i in 1 2 3 4 5; do
+            git fetch origin main
+            git rebase origin/main || git rebase --abort
+            if git push origin HEAD:main; then exit 0; fi
+            sleep 3
+          done
+          exit 1
