@@ -111,6 +111,10 @@ html,body{margin:0;width:100%;height:100%;background:#eef2f6}
       }
     }
 
+    // Make this renderer the authoritative V17 refreshMatchList implementation.
+    // V17 otherwise refreshes the table after startup/tab changes and removes the Delete column.
+    w.refreshMatchList=refreshMatchList;
+
     const originalButton=createButton;
     const fresh=originalButton.cloneNode(true);
     originalButton.replaceWith(fresh);
