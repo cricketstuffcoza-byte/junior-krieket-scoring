@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="af">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>O/8 T80 Krieket Telkaart</title>
+</head>
+<body>
+<div style="font-family:system-ui,sans-serif;padding:24px">Laai O/8 telkaart…</div>
+<script>
+(async()=>{
+  try{
+    const url='scorer-o8-v13.html'+(location.search||'');
+    const r=await fetch(url,{cache:'no-store'});
+    if(!r.ok) throw new Error('Kon nie O/8 telkaart laai nie ('+r.status+').');
+    let s=await r.text();
+    // The approved Alpha/Omega has loadO8Data() as its real Supabase loader.
+    // Only repair the stale boot reference; scoring/UI code is otherwise untouched.
+    s=s.replaceAll('function init(){bootO8()}','function init(){loadO8Data()}');
+    s=s.replaceAll('async function productionBoot(){try{await bootO8();','async function productionBoot(){try{await loadO8Data();');
+    document.open();
+    document.write(s);
+    document.close();
+  }catch(e){
+    document.body.innerHTML='<div style="font-family:system-ui,sans-serif;padding:24px;color:#9d1c1c"><h2>O/8 telkaart kon nie laai nie</h2><p>'+String(e.message||e).replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))+'</p></div>';
+  }
+})();
+</script>
+</body>
+</html>
