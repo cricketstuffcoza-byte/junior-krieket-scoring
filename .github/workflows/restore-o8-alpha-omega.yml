@@ -35,3 +35,4 @@ jobs:
           git add scorer-o8-v13.html
           git commit -m 'Restore O8 Alpha Omega as production scorecard' || exit 0
           git push
+# The payload is the exact user-approved Alpha/Omega HTML.
