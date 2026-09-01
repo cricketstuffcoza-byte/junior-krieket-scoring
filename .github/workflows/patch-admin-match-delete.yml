@@ -1,0 +1,46 @@
+name: Patch Admin Match Delete
+
+on:
+  push:
+    paths:
+      - 'ADMIN-MATCH-DELETE-PATCH.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Patch admin-v17
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('admin-v17.html')
+          text = path.read_text(encoding='utf-8')
+
+          pattern = r"async function loadMatches\(\)\{.*?\}\nasync function createMatch"
+          replacement = r'''async function loadMatches(){const{data,error}=await db.from('matches').select('id,fixture_code,age_group,match_date,match_time,venue,status,result_type,result_reason,team_a_id,team_b_id,teams_a:teams!matches_team_a_id_fkey(name),teams_b:teams!matches_team_b_id_fkey(name)').order('match_date',{ascending:false}).limit(100);if(error){el('matchTable').innerHTML='<div class="status error">'+esc(error.message)+'</div>';return}el('matchTable').innerHTML='<table><tr><th>Datum</th><th>Wedstryd</th><th>Venue</th><th>Status</th><th>Uitslag/status</th><th>Aksies</th></tr>'+((data||[]).map(m=>`<tr><td>${esc(m.match_date)}</td><td>${esc(m.teams_a?.name||'Span A')} vs ${esc(m.teams_b?.name||'Span B')}</td><td>${esc(m.venue)}</td><td>${esc(m.status)}</td><td>${esc(m.result_type||'')} ${esc(m.result_reason||'')}</td><td class="rowactions"><button class="danger mini" onclick="deleteMatch('${m.id}','${esc(m.teams_a?.name||'Span A')} vs ${esc(m.teams_b?.name||'Span B')}','${esc(m.match_date||'')}')">🗑️ Delete</button></td></tr>`).join('')||'<tr><td colspan="6">Geen wedstryde nie.</td></tr>')+'</table>'}
+async function deleteMatch(id,label,date){if(!id)return;if(!confirm(`Delete hierdie wedstryd?\n\n${label}\n${date}\n\nAlle gekoppelde scorer-data vir hierdie wedstryd sal ook verwyder word.`))return;const{error}=await db.from('matches').delete().eq('id',id);if(error)return alert('Kon wedstryd nie delete nie: '+error.message);msg('matchMsg','Wedstryd suksesvol deleted.','success');await loadMatches();await dashboard()}
+async function createMatch'''
+
+          new_text, count = re.subn(pattern, replacement, text, count=1, flags=re.S)
+          if count != 1:
+              raise SystemExit('Could not locate loadMatches/createMatch block')
+          if new_text == text:
+              raise SystemExit('No change made')
+          path.write_text(new_text, encoding='utf-8')
+          PY
+
+      - name: Commit patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add admin-v17.html
+          git diff --cached --quiet || git commit -m 'Enable admin match deletion'
+          git push
