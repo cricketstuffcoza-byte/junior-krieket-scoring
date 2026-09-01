@@ -36,7 +36,7 @@ jobs:
           if needle not in text:
               raise SystemExit('Could not find V19 enhancement block.')
 
-          patch = r'''\n<script>\n(function(){\n  'use strict';\n  // U/6 HERSTEL must create a completely new match.\n  // Capture the click before the original button handler and prevent the\n  // resume/save layer from recreating the saved state during reload.\n  document.addEventListener('click', function(ev){\n    var btn = ev.target && ev.target.closest ? ev.target.closest('#reset') : null;\n    if(!btn) return;\n    ev.preventDefault();\n    ev.stopImmediatePropagation();\n    try {\n      if(typeof state !== 'undefined' && state) state.started = false;\n    } catch(e) {}\n    try {\n      var id = new URLSearchParams(window.parent.location.search).get('match');\n      if(id) localStorage.removeItem('junior_krieket_v19_saved_' + id);\n    } catch(e) {}\n    try { sessionStorage.removeItem('junior_krieket_v19_reset'); } catch(e) {}\n    window.location.reload();\n  }, true);\n})();\n</script>\n<!-- O6 V19 HARD RESET PATCH V2 -->\n'''
+          patch = r'''\n<script>\n(function(){\n  'use strict';\n  // U/6 HERSTEL must create a completely new match.\n  // Capture before the original target handler and stop the save/resume\n  // layer from recreating the saved state during the reload.\n  document.addEventListener('click', function(ev){\n    var btn = ev.target && ev.target.closest ? ev.target.closest('#reset') : null;\n    if(!btn) return;\n    ev.preventDefault();\n    ev.stopImmediatePropagation();\n    try { if(typeof state !== 'undefined' && state) state.started = false; } catch(e) {}\n    try {\n      var id = new URLSearchParams(window.parent.location.search).get('match');\n      if(id) localStorage.removeItem('junior_krieket_v19_saved_' + id);\n    } catch(e) {}\n    window.location.reload();\n  }, true);\n})();\n</script>\n<!-- O6 V19 HARD RESET PATCH V2 -->\n'''
 
           text = text.replace(needle, needle + patch, 1)
           path.write_text(text, encoding='utf-8')
@@ -53,3 +53,5 @@ jobs:
             git commit -m 'Fix U6 reset to show new match start'
             git push origin HEAD:main
           fi
+
+      # V2: production wrapper patch must run on the current main branch.
