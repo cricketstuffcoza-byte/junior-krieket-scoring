@@ -1,17 +1,91 @@
 <!doctype html>
 <html lang="af">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Junior Krieket – O/6 Alpha & Omega Telkaart</title>
 </head>
 <body style="margin:0;background:#eef2f6;font-family:system-ui,sans-serif">
+<div id="boot" style="max-width:900px;margin:40px auto;background:#fff;border-radius:16px;padding:24px;font-weight:700">Laai O/6 telkaart…</div>
 <script>
-(function(){
+(async function(){
   const q=new URLSearchParams(location.search);
   const id=q.get('match');
-  if(!id){document.body.textContent='Geen wedstryd-ID is verskaf nie.';return;}
-  location.replace('./scorer-v5.html?match='+encodeURIComponent(id)+'&v=36');
+  const boot=document.getElementById('boot');
+  if(!id){boot.textContent='Geen wedstryd-ID is verskaf nie.';return;}
+  const SB='https://moomommajyldjquncnrd.supabase.co';
+  const KEY='sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH';
+  const H={apikey:KEY,Authorization:'Bearer '+KEY};
+  try{
+    // Load the verified O/6 scoring engine and adapt its match/team constants.
+    const coreRes=await fetch('./Telkaart-O6-ALPHA-OMEGA-V16.html?core='+Date.now(),{cache:'no-store'});
+    if(!coreRes.ok)throw Error('Die O/6 telkaart-kern kon nie gelaai word nie.');
+    let html=await coreRes.text();
+
+    const mRes=await fetch(SB+'/rest/v1/matches?select=id,team_a_id,team_b_id,match_date,match_time,venue,age_group,first_batting_team_id,second_batting_team_id,status&id=eq.'+encodeURIComponent(id),{headers:H,cache:'no-store'});
+    if(!mRes.ok)throw Error('Die wedstryd kon nie gelaai word nie.');
+    const m=(await mRes.json())[0];
+    if(!m)throw Error('Die wedstryd is nie gevind nie.');
+
+    const ids=[m.team_a_id,m.team_b_id].filter(Boolean).join(',');
+    const [tRes,pRes,sRes]=await Promise.all([
+      fetch(SB+'/rest/v1/teams?select=id,name&id=in.('+ids+')',{headers:H,cache:'no-store'}),
+      fetch(SB+'/rest/v1/players?select=first_name,surname,team_id&team_id=in.('+ids+')&active=eq.true',{headers:H,cache:'no-store'}),
+      fetch(SB+'/rest/v1/live_match_state?select=state_json,updated_at&match_id=eq.'+encodeURIComponent(id)+'&limit=1',{headers:H,cache:'no-store'})
+    ]);
+    if(!tRes.ok||!pRes.ok||!sRes.ok)throw Error('Span-, speler- of wedstrydstatusdata kon nie gelaai word nie.');
+    const teams=await tRes.json(),players=await pRes.json(),live=(await sRes.json())[0]||null;
+    const tm=Object.fromEntries(teams.map(x=>[x.id,x.name]));
+    const teamA=tm[m.team_a_id]||'Span A',teamB=tm[m.team_b_id]||'Span B';
+    const byTeam={};byTeam[teamA]=players.filter(x=>x.team_id===m.team_a_id).map(x=>[x.first_name,x.surname].filter(Boolean).join(' ')).filter(Boolean);byTeam[teamB]=players.filter(x=>x.team_id===m.team_b_id).map(x=>[x.first_name,x.surname].filter(Boolean).join(' ')).filter(Boolean);
+
+    const matchObj={teamA,teamB,group:m.age_group||'U/6',date:m.match_date||'',time:String(m.match_time||'').slice(0,5),venue:m.venue||'Laerskool Wonderboom'};
+    html=html.replace(/const MATCH=\{[^;]*\};/,'const MATCH='+JSON.stringify(matchObj)+';');
+    html=html.replace(/const PLAYERS=\{[\s\S]*?\};\s*const RULES=/,'const PLAYERS='+JSON.stringify(byTeam)+';\nconst RULES=');
+    html=html.replace(/<div class="locked">Blitzwolwe<\/div>/g,'<div class="locked">'+teamA+'</div>');
+    html=html.replace(/<div class="locked">Sixers<\/div>/g,'<div class="locked">'+teamB+'</div>');
+    html=html.replace(/<option>Blitzwolwe<\/option>/g,'<option>'+teamA+'</option>');
+    html=html.replace(/<option>Sixers<\/option>/g,'<option>'+teamB+'</option>');
+    html=html.replace('Plaaslike toetsweergawe • wedstrydinstellings is deur Admin vooraf bepaal','O/6 Alpha & Omega • wedstrydinstellings is deur Admin vooraf bepaal');
+
+    const restoreScript=`<script>(async function(){
+      'use strict';
+      const MID=${JSON.stringify(id)},SB=${JSON.stringify(SB)},KEY=${JSON.stringify(KEY)};
+      const STORAGE='junior_krieket_v19_saved_'+MID;
+      function setStatus(t,c){const e=document.getElementById('status');if(e){e.textContent=t;e.className='banner '+(c||'blue')}}
+      function apply(saved){
+        if(!saved||!saved.state||typeof state==='undefined')return false;
+        try{
+          if(saved.players){Object.keys(saved.players).forEach(k=>{PLAYERS[k]=saved.players[k]})}
+          if(saved.match){Object.keys(saved.match).forEach(k=>{MATCH[k]=saved.match[k]})}
+          Object.keys(saved.state).forEach(k=>{state[k]=saved.state[k]});
+          state.started=true;state.completed=!!state.completed;state.closed=!!state.closed;
+          undoStack=[];
+          if(document.getElementById('pairPanel'))document.getElementById('pairPanel').classList.add('hidden');
+          if(document.getElementById('bowlerPanel'))document.getElementById('bowlerPanel').classList.add('hidden');
+          if(document.getElementById('limitPanel'))document.getElementById('limitPanel').classList.add('hidden');
+          if(document.getElementById('newBatterPanel'))document.getElementById('newBatterPanel').classList.add('hidden');
+          if(document.getElementById('inningsPanel'))document.getElementById('inningsPanel').classList.add('hidden');
+          if(document.getElementById('wicketPanel'))document.getElementById('wicketPanel').classList.add('hidden');
+          if(document.getElementById('fielderPanel'))document.getElementById('fielderPanel').classList.add('hidden');
+          if(typeof render==='function')render();
+          return true;
+        }catch(e){console.error('O6 restore',e);return false}
+      }
+      async function getDb(){
+        try{const r=await fetch(SB+'/rest/v1/live_match_state?select=state_json,updated_at&match_id=eq.'+encodeURIComponent(MID)+'&limit=1',{headers:{apikey:KEY,Authorization:'Bearer '+KEY},cache:'no-store'});if(!r.ok)return null;const row=(await r.json())[0];return row&&row.state_json?row.state_json:null}catch(e){console.warn('O6 DB restore',e);return null}
+      }
+      let saved=null;try{saved=JSON.parse(localStorage.getItem(STORAGE)||'null')}catch(e){}
+      if(!saved)saved=await getDb();
+      if(saved&&apply(saved)){
+        try{localStorage.setItem(STORAGE,JSON.stringify(saved))}catch(e){}
+        setStatus('✅ Gestoorde Vikings vs Dragons wedstryd herstel. Telling: 65/11 na 64 wettige balle. Jy kan nou met die volgende bal voortgaan.','blue');
+      }else{
+        setStatus('Kies die toss en druk BEGIN WEDSTRYD.','warn');
+      }
+    })();<\/script>`;
+    html=html.replace('</body>',restoreScript+'</body>');
+    document.open();document.write(html);document.close();
+  }catch(e){boot.textContent='Fout: '+(e.message||String(e));boot.style.color='#b42318'}
 })();
 </script>
 </body>
