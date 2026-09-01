@@ -24,7 +24,7 @@
         },300);
         setTimeout(()=>clearInterval(timer),15000);
       })();
-    <\\/script>`;
+    <\/script>`;
     document.open();document.write(html.replace('</body>',injected+'</body>'));document.close();
   }catch(e){document.getElementById('loading').textContent='Kon O/7 telkaart nie laai nie: '+e.message;console.error(e);}
 })();
