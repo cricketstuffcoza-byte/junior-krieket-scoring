@@ -7,8 +7,11 @@
 'use strict';
 (function(){
  const q=new URLSearchParams(location.search),id=q.get('match');
- if(!id){location.replace('/scorer-o6-v20');return;}
- location.replace('/scorer-o6-v20?match='+encodeURIComponent(id)+'&resume=1&v=32&ts='+Date.now());
+ if(!id){location.replace('scorer-o6-v20?start=1&v=32');return;}
+ // V19 is now only a compatibility entry point. Always route into the
+ // current V20 recovery engine so the saved match state and database teams
+ // are loaded instead of the old Blitzwolwe/Sixers shell.
+ location.replace('scorer-o6-v20?match='+encodeURIComponent(id)+'&resume=1&v=32&ts='+Date.now());
 })();
 </script>
 </body>
