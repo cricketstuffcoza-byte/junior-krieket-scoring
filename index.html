@@ -3,181 +3,54 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Junior Krieket Scoring - LIVE TEST </title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<title>Junior Krieket</title>
 <style>
 :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#eef2f6}
-*{box-sizing:border-box}body{margin:0}.wrap{max-width:1100px;margin:auto;padding:14px}.card{background:#fff;border-radius:18px;padding:18px;margin:12px 0;box-shadow:0 3px 16px #0001}
-h1,h2,h3{margin:0 0 10px}.muted{color:#667085}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-input,select{width:100%;padding:12px;border:1px solid #ccd3dc;border-radius:10px;background:#fff;font-size:16px}
-button{border:0;border-radius:11px;padding:12px 16px;font-weight:800;cursor:pointer}.primary{background:#172033;color:#fff}.ghost{background:#eef2f6}.danger{background:#fee2e2;color:#991b1b}
-.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.notice{padding:12px;border-radius:12px;background:#f0f7ff;margin-top:10px}
-.top{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.pill{display:inline-block;padding:4px 9px;border-radius:999px;background:#edf2f7;font-size:12px;font-weight:800}
-.fixture{border:1px solid #e1e6ed;border-radius:14px;padding:14px;margin:9px 0;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
-.hidden{display:none!important}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.tabs button.active{background:#172033;color:white}
-.modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:18px;z-index:20}
-.modalbox{background:#fff;border-radius:18px;padding:20px;max-width:560px;width:100%}
-table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px solid #e5e7eb;text-align:left}
-.small{font-size:13px}.success{color:#087443}.error{color:#b42318}
-@media(max-width:700px){.grid{grid-template-columns:1fr}.fixture{grid-template-columns:1fr}.wrap{padding:9px}}
+*{box-sizing:border-box}body{margin:0}.wrap{max-width:980px;margin:auto;padding:28px}.card{background:#fff;border-radius:18px;padding:24px;margin:18px 0;box-shadow:0 3px 16px #0001}.hero{background:#172033;color:#fff}.muted{color:#667085}.hero .muted{color:#d5deea}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}button,a{border:0;border-radius:11px;padding:13px 17px;font-weight:800;text-decoration:none;cursor:pointer}.primary{background:#fff;color:#172033}.secondary{background:#eef2f6;color:#172033}.error{color:#b42318}.pill{display:inline-block;padding:5px 10px;border-radius:999px;background:#edf2f7;color:#172033;font-size:12px;font-weight:800}
 </style>
 </head>
 <body>
 <div class="wrap">
-<div class="card" id="authCard">
-  <div class="top"><div><h1>🏏 Junior Krieket</h1><p class="muted">Supabase multi-device application</p></div><span class="pill">LIVE DATABASE</span></div>
-  <h2 style="margin-top:16px">Aanmelding</h2>
-  <div class="grid">
-    <div><label>E-pos</label><input id="email" type="email" autocomplete="email"></div>
-    <div><label>Wagwoord</label><input id="password" type="password" autocomplete="current-password"></div>
+  <div class="card hero">
+    <h1>🏏 Junior Krieket</h1>
+    <p class="muted">Junior Krieket scoring • Live Supabase database • Cloudflare Pages</p>
+    <span class="pill">PRODUCTION</span>
   </div>
-  <div class="actions"><button class="primary" id="login">AANMELD</button><button class="ghost" id="signup">SKep rekening</button></div>
-  <p id="authMsg" class="small"></p>
-</div>
-
-<div id="app" class="hidden">
   <div class="card">
-    <div class="top">
-      <div><h1>🏏 Junior Krieket Scoring</h1><p class="muted">Die data word direk in jou Supabase-databasis gestoor.</p></div>
-      <button class="ghost" id="logout">Teken uit</button>
-    </div>
-    <div class="tabs">
-      <button class="active" data-tab="fixturesTab">📅 Fixtures</button>
-      <button data-tab="playersTab">👥 Spelers</button>
-    </div>
+    <h2 id="title">Laai…</h2>
+    <p id="message" class="muted">Bepaal die regte toepassing…</p>
+    <div id="actions" class="actions"></div>
   </div>
-
-  <section id="fixturesTab">
-    <div class="card">
-      <h2>➕ Nuwe fixture</h2>
-      <div class="grid">
-        <div><label>Ouderdomsgroep</label><select id="age"><option>U/6</option><option>U/7</option><option>U/8</option></select></div>
-        <div><label>Venue</label><input id="venue" value="Laerskool Wonderboom" readonly></div>
-        <div><label>Span A</label><select id="teamA"></select></div>
-        <div><label>Span B</label><select id="teamB"></select></div>
-        <div><label>Datum</label><input id="date" type="date"></div>
-        <div><label>Tyd</label><input id="time" type="time" value="17:30"></div>
-      </div>
-      <div class="actions"><button class="primary" id="createFixture">SKEP FIXTURE</button></div>
-      <p id="fixtureMsg" class="small"></p>
-    </div>
-    <div class="card">
-      <div class="top"><h2>📅 Fixtures</h2><button class="ghost" id="refresh">Hernu</button></div>
-      <div id="fixtures"><p class="muted">Laai...</p></div>
-    </div>
-  </section>
-
-  <section id="playersTab" class="hidden">
-    <div class="card"><h2>👥 Spelers</h2><p class="muted">Spelers word uit die Supabase-databasis gelees. Ons bou die admin-spelerbestuur hierna verder.</p><div id="players"></div></div>
-  </section>
 </div>
-</div>
-
-<div class="modal hidden" id="tossModal">
- <div class="modalbox">
-  <h2>🪙 Toss</h2>
-  <p id="tossFixture"></p>
-  <label>Toss-wenner</label><select id="tossWinner"></select>
-  <br><br>
-  <label>Besluit</label><select id="tossDecision"><option value="">Kies besluit</option><option value="BAT">🏏 Kolf eerste</option><option value="BOWL">🎯 Boul eerste</option></select>
-  <div class="actions"><button class="primary" id="saveToss">STOOR TOSS & BEGIN</button><button class="ghost" id="closeToss">Kanselleer</button></div>
-  <p id="tossMsg" class="small"></p>
- </div>
-</div>
-
 <script>
-const SUPABASE_URL = "https://moomommajyldjquncnrd.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH";
-const {createClient} = supabase;
-const db = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-const $ = s => document.querySelector(s);
-let teams=[], currentFixture=null;
-
-function msg(el,text,cls=""){el.textContent=text;el.className="small "+cls}
-async function q(table, options={}) {
-  let req=db.from(table).select(options.select||"*");
-  if(options.eq) for(const [k,v] of Object.entries(options.eq)) req=req.eq(k,v);
-  if(options.order) req=req.order(options.order,{ascending:options.ascending!==false});
-  const {data,error}=await req;
-  if(error) throw error;
-  return data||[];
-}
-async function boot(){
-  const {data:{session}}=await db.auth.getSession();
-  if(session) showApp(); else showAuth();
-  const {data:sub}=db.auth.onAuthStateChange((_event,session)=>session?showApp():showAuth());
-}
-function showAuth(){$("#authCard").classList.remove("hidden");$("#app").classList.add("hidden")}
-async function showApp(){$("#authCard").classList.add("hidden");$("#app").classList.remove("hidden");try{await loadTeams();await loadFixtures();await loadPlayers()}catch(e){msg($("#fixtureMsg"),e.message,"error")}}
-$("#login").onclick=async()=>{try{const {error}=await db.auth.signInWithPassword({email:$("#email").value.trim(),password:$("#password").value});if(error)throw error}catch(e){msg($("#authMsg"),e.message,"error")}}
-$("#signup").onclick=async()=>{try{const email=$("#email").value.trim(),password=$("#password").value;if(password.length<6)throw Error("Gebruik minstens 6 karakters vir die wagwoord.");const {error}=await db.auth.signUp({email,password});if(error)throw error;msg($("#authMsg"),"Rekening geskep. As e-pos-bevestiging aangeskakel is, bevestig jou e-pos voordat jy aanmeld.","success")}catch(e){msg($("#authMsg"),e.message,"error")}}
-$("#logout").onclick=()=>db.auth.signOut();
-document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("active"));b.classList.add("active");document.querySelectorAll("section").forEach(x=>x.classList.add("hidden"));$("#"+b.dataset.tab).classList.remove("hidden")});
-async function loadTeams(){
-  teams=await q("teams",{eq:{active:true},order:"name"});
-  fillTeamSelects();
-}
-function fillTeamSelects(){
-  const age=$("#age").value, ts=teams.filter(t=>t.age_group===age);
-  const opts=ts.map(t=>`<option value="${t.id}">${t.name}</option>`).join("");
-  $("#teamA").innerHTML=opts;$("#teamB").innerHTML=opts;
-  if(ts[1])$("#teamB").value=ts[1].id;
-}
-$("#age").onchange=fillTeamSelects;
-async function loadFixtures(){
-  const fs=await q("fixture_list",{order:"match_date"});
-  $("#fixtures").innerHTML=fs.length?fs.map(f=>`
-   <div class="fixture">
-    <div><b>${f.team_a_name} vs ${f.team_b_name}</b><br>📅 ${f.match_date} • 🕐 ${String(f.match_time).slice(0,5)} • 📍 ${f.venue}<br>
-    <span class="pill">${f.age_group}</span> <span class="pill">${f.status}</span>
-    ${f.toss_winner_name?`<br>🪙 Toss: ${f.toss_winner_name} — ${f.toss_decision==="BAT"?"Kolf eerste":"Boul eerste"}`:""}</div>
-    <div class="actions">
-      ${f.status==="SCHEDULED"?`<button class="primary" onclick="openToss('${f.id}')">TOSS</button>`:""}
-      ${f.status==="LIVE"?`<button class="primary" onclick="openScorer('${f.id}')">OPEN LIVE</button>`:""}
-    </div>
-   </div>`).join(""):"<p class='muted'>Geen fixtures beskikbaar.</p>";
-}
-async function loadPlayers(){
-  const ps=await q("players",{eq:{active:true},order:"surname"});
-  const map=Object.fromEntries(teams.map(t=>[t.id,t.name]));
-  $("#players").innerHTML=ps.length?`<table><thead><tr><th>Speler</th><th>Span</th><th>Groep</th></tr></thead><tbody>${ps.map(p=>`<tr><td>${p.first_name} ${p.surname}</td><td>${map[p.team_id]||"—"}</td><td>${teams.find(t=>t.id===p.team_id)?.age_group||"—"}</td></tr>`).join("")}</tbody></table>`:"<p class='muted'>Geen spelers gelaai nie.</p>";
-}
-$("#createFixture").onclick=async()=>{
- try{
-   const a=$("#teamA").value,b=$("#teamB").value;
-   if(!a||!b||a===b)throw Error("Kies twee verskillende spanne.");
-   const payload={age_group:$("#age").value,team_a_id:a,team_b_id:b,match_date:$("#date").value,match_time:$("#time").value,venue:"Laerskool Wonderboom",status:"SCHEDULED"};
-   if(!payload.match_date)throw Error("Kies die wedstryddatum.");
-   const {data,error}=await db.from("matches").insert(payload).select().single();
-   if(error)throw error;
-   msg($("#fixtureMsg"),"Fixture geskep en permanent in Supabase gestoor.","success");await loadFixtures();
- }catch(e){msg($("#fixtureMsg"),e.message,"error")}
-};
-window.openToss=async id=>{
- try{
-  const {data,error}=await db.from("fixture_list").select("*").eq("id",id).single();if(error)throw error;
-  currentFixture=data;$("#tossFixture").textContent=`${data.team_a_name} vs ${data.team_b_name} • ${data.match_date} • ${String(data.match_time).slice(0,5)} • Laerskool Wonderboom`;
-  $("#tossWinner").innerHTML=`<option value="">Kies toss-wenner</option><option value="${data.team_a_id}">${data.team_a_name}</option><option value="${data.team_b_id}">${data.team_b_name}</option>`;
-  $("#tossModal").classList.remove("hidden");
- }catch(e){alert(e.message)}
-}
-$("#closeToss").onclick=()=>$("#tossModal").classList.add("hidden");
-$("#saveToss").onclick=async()=>{
- try{
-  const winner=$("#tossWinner").value, decision=$("#tossDecision").value;if(!winner||!decision)throw Error("Kies die toss-wenner en besluit.");
-  const first=decision==="BAT"?winner:(winner===currentFixture.team_a_id?currentFixture.team_b_id:currentFixture.team_a_id);
-  const second=first===currentFixture.team_a_id?currentFixture.team_b_id:currentFixture.team_a_id;
-  const {error}=await db.from("matches").update({toss_winner_team_id:winner,toss_decision:decision,first_batting_team_id:first,second_batting_team_id:second,status:"LIVE"}).eq("id",currentFixture.id);if(error)throw error;
-  // Create first innings and live state. Pair/player selection is done in the scorer.
-  const {error:e1}=await db.from("innings").upsert({match_id:currentFixture.id,innings_no:1,batting_team_id:first,fielding_team_id:second},{onConflict:"match_id,innings_no"});if(e1)throw e1;
-  const {error:e2}=await db.from("live_match_state").upsert({match_id:currentFixture.id,status:"READY",innings_no:1},{onConflict:"match_id"});if(e2)throw e2;
-  $("#tossModal").classList.add("hidden");await loadFixtures();openScorer(currentFixture.id);
- }catch(e){msg($("#tossMsg"),e.message,"error")}
-};
-window.openScorer=id=>{
-  // Keep the app on the same domain and pass the fixture ID to the live scorer.
-  location.href=`scorer.html?match=${encodeURIComponent(id)}`;
-};
-boot();
+(function(){
+  const params=new URLSearchParams(location.search);
+  const match=params.get('match');
+  const title=document.getElementById('title');
+  const message=document.getElementById('message');
+  const actions=document.getElementById('actions');
+  function link(label,href,primary=true){
+    const a=document.createElement('a');a.href=href;a.textContent=label;a.className=primary?'primary':'secondary';actions.appendChild(a);
+  }
+  if(match){
+    title.textContent='Laai wedstryd…';
+    message.textContent='Die wedstryd-ID is ontvang. Die korrekte ouderdomsgroep-telkaart word oopgemaak.';
+    fetch('https://moomommajyldjquncnrd.supabase.co/rest/v1/matches?id=eq.'+encodeURIComponent(match)+'&select=age_group',{headers:{apikey:'sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH'},cache:'no-store'})
+      .then(r=>{if(!r.ok)throw Error('Kon nie die wedstryd bepaal nie.');return r.json()})
+      .then(rows=>{
+        const ag=String(rows?.[0]?.age_group||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+        if(ag==='U6'||ag==='O6') location.replace('scorer-o6.html?match='+encodeURIComponent(match)+'&v=29');
+        else if(ag==='U8'||ag==='O8') location.replace('scorer-o8-v21.html?match='+encodeURIComponent(match)+'&v=29');
+        else throw Error('Geen telkaart beskikbaar vir hierdie ouderdomsgroep nie.');
+      })
+      .catch(e=>{title.textContent='Kon nie wedstryd oopmaak nie';message.textContent=e.message||String(e);message.className='error';link('Maak Admin Portaal oop','admin-v24.html',false)});
+    return;
+  }
+  title.textContent='Welkom';
+  message.textContent='Kies die toepassing wat jy wil gebruik.';
+  link('🔐 Admin Portaal V24','admin-v24.html',true);
+  link('📖 Live Score Router','scorer.html',false);
+})();
 </script>
-</body></html>
+</body>
+</html>
