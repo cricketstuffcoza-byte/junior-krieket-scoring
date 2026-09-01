@@ -1,0 +1,66 @@
+name: Fix O6 runout flow
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Patch U6 V19 runout flow
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('scorer-o6-v19.html')
+          s = p.read_text(encoding='utf-8')
+
+          old = "if(state.dismissalType!=='RUN_OUT'||!state.pendingRunOutBatter||!state.selectedFielder)return;"
+          new = "if(state.dismissalType!=='RUN_OUT'||!state.pendingRunOutBatter)return;"
+          if old in s:
+              s = s.replace(old, new, 1)
+
+          old = "if(fb){fb.out=true;fb.dismissals=(fb.dismissals||0)+1}"
+          new = "if(fb){fb.dismissals=(fb.dismissals||0)+1}"
+          if old in s:
+              s = s.replace(old, new, 1)
+
+          old = "state.runOutReplacementRole=(target===state.striker)?'striker':'nonStriker';e('fielderPanel').classList.add('hidden');showReplacement(state.runOutReplacementRole);render()"
+          new = "e('fielderPanel').classList.add('hidden');render()"
+          if old in s:
+              s = s.replace(old, new, 1)
+
+          old = "state.pendingRunOutBatter=decodeURIComponent(b.getAttribute('data-v19-batter'));e('v19RunoutModal').classList.add('hidden');openFielderChooser('RUN_OUT')"
+          new = "state.pendingRunOutBatter=decodeURIComponent(b.getAttribute('data-v19-batter'));e('v19RunoutModal').classList.add('hidden');finishRunout()"
+          if old in s:
+              s = s.replace(old, new, 1)
+
+          old = "<div class=\"v19hint\">Kies presies watter een van die huidige twee kolwers gerun-out is. Daarna kies die veldwerker wat die run-out veroorsaak het.</div>"
+          new = "<div class=\"v19hint\">Kies presies watter een van die huidige twee kolwers gerun-out is. Die speler bly aan as kolwer; die run-out word net by sy <strong>kere uit</strong>-totaal aangeteken.</div>"
+          if old in s:
+              s = s.replace(old, new, 1)
+
+          if s == p.read_text(encoding='utf-8'):
+              raise SystemExit('No patch changes found; source may already be patched or the expected code changed.')
+
+          p.write_text(s, encoding='utf-8')
+
+      - name: Commit patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scorer-o6-v19.html
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "Fix U6 runout: keep batter active and increment outs tally"
+          git push
