@@ -479,4 +479,4 @@ function resumeGate(){const start=document.getElementById("start");if(!start)ret
 function init(){addSaveButton();resumeGate();setTimeout(function(){if(getSaved()){try{if(typeof state!=="undefined"&&state&&state.started){restore();var b=document.getElementById("v19SaveResume");if(b)b.classList.remove("hidden")}}catch(e){}}},250);setInterval(save,1500);window.addEventListener("beforeunload",save);document.addEventListener("visibilitychange",function(){if(document.visibilityState==="hidden")save()});}
 setTimeout(init,50);
 })();</script>
-</body></html>
+\n<script>\n(function(){\n  'use strict';\n  // HERSTEL means a completely new match, not resume.\n  // Capture the click before the original reset/resume handler can run.\n  document.addEventListener('click', function(ev){\n    var btn = ev.target && ev.target.closest ? ev.target.closest('#reset') : null;\n    if(!btn) return;\n    ev.preventDefault();\n    ev.stopImmediatePropagation();\n    try { localStorage.clear(); } catch(e) {}\n    try { sessionStorage.clear(); } catch(e) {}\n    window.location.reload();\n  }, true);\n})();\n</script>\n<!-- O6 V19 HARD RESET PATCH -->\n</body></html>
