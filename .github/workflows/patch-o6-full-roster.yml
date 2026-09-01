@@ -10,23 +10,38 @@ permissions:
 
 jobs:
   patch:
+    if: ${{ !contains(github.event.head_commit.message, 'Fix U6 match controls production') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Patch U6 V19 roster source
+      - name: Patch U6 V19 controls
         shell: python
         run: |
           from pathlib import Path
-          p = Path('scorer-o6-v19.html')
-          s = p.read_text(encoding='utf-8')
-          old = "const mp=await db.from('match_players').select('player_id,team_id,players(first_name,surname)').eq('match_id',matchId);if(mp.error)throw mp.error;\n const players={};players[teamA]=(mp.data||[]).filter(x=>x.team_id===match.team_a_id&&x.players).map(x=>[x.players.first_name,x.players.surname].filter(Boolean).join(' '));players[teamB]=(mp.data||[]).filter(x=>x.team_id===match.team_b_id&&x.players).map(x=>[x.players.first_name,x.players.surname].filter(Boolean).join(' '));"
-          new = "const roster=await db.from('players').select('first_name,surname,team_id').in('team_id',ids);if(roster.error)throw roster.error;\n const players={};players[teamA]=(roster.data||[]).filter(x=>x.team_id===match.team_a_id).map(x=>[x.first_name,x.surname].filter(Boolean).join(' ')).filter(Boolean);players[teamB]=(roster.data||[]).filter(x=>x.team_id===match.team_b_id).map(x=>[x.first_name,x.surname].filter(Boolean).join(' ')).filter(Boolean);"
-          if old not in s:
-              raise SystemExit('Expected U6 roster source was not found; no changes made.')
-          s = s.replace(old, new, 1)
-          p.write_text(s, encoding='utf-8')
+          p=Path('scorer-o6-v19.html')
+          s=p.read_text(encoding='utf-8')
+          marker="render();})();<\\/script>`;"
+          if marker not in s: raise SystemExit('V19 enhancement marker not found')
+          patch=r'''render();
+
+// O6 MATCH CONTROLS PATCH V6
+(function(){
+  'use strict';
+  var runoutChoices=document.getElementById('v19RunoutChoices');
+  if(runoutChoices){runoutChoices.addEventListener('click',function(ev){var btn=ev.target.closest?ev.target.closest('button[data-v19-batter]'):null;if(!btn)return;ev.preventDefault();ev.stopImmediatePropagation();state.pendingRunOutBatter=decodeURIComponent(btn.getAttribute('data-v19-batter'));document.getElementById('v19RunoutModal').classList.add('hidden');if(typeof openFielderChooser==='function')openFielderChooser('RUN_OUT');},true);}
+  if(typeof finishRunout==='function'){var oldFinishRunout=finishRunout;finishRunout=function(){oldFinishRunout();if(state&&!state.completed&&typeof team==='function'){var t=team();if(t&&t.legalBalls>0&&t.legalBalls%R.legalPerOver===0&&typeof openBowler==='function')openBowler();}if(typeof render==='function')render();};}
+  function addStrikeSwitch(){if(document.getElementById('v19SwitchStrike'))return;var host=document.getElementById('striker');if(!host||!host.parentElement)return;var b=document.createElement('button');b.id='v19SwitchStrike';b.type='button';b.className='v19secondary';b.textContent='🔄 WISSEL STRIKE';b.style.marginTop='10px';b.addEventListener('click',function(){if(!state||!state.started||!state.striker||!state.nonStriker)return;if(state.pendingNewBatter||state.pendingDismissal||state.pendingFielder||state.pendingCoachThrow||state.pairLimitAccepted)return;if(typeof snapshot==='function')snapshot();[state.striker,state.nonStriker]=[state.nonStriker,state.striker];if(typeof render==='function')render();});host.parentElement.appendChild(b);}
+  addStrikeSwitch();
+  if(typeof openBowler==='function'){var oldOpenBowler=openBowler;openBowler=function(){if(state)state.bowler=null;oldOpenBowler();if(typeof render==='function')render();};}
+  function guardBallEntry(ev){var panel=document.getElementById('bowlerPanel');if(panel&&!panel.classList.contains('hidden')){ev.preventDefault();ev.stopImmediatePropagation();}}
+  var normal=document.getElementById('normalButtons'),coach=document.getElementById('coachPanel');if(normal)normal.addEventListener('click',guardBallEntry,true);if(coach)coach.addEventListener('click',guardBallEntry,true);
+  var oldRender=render;render=function(){oldRender();var sw=document.getElementById('v19SwitchStrike');if(sw){var bp=document.getElementById('bowlerPanel');sw.disabled=!(state&&state.started&&state.striker&&state.nonStriker&&!state.pendingNewBatter&&!state.pendingDismissal&&!state.pendingFielder&&!state.pendingCoachThrow&&!state.pairLimitAccepted&&(!bp||bp.classList.contains('hidden')));}};render();
+})();
+</script>`;'''
+          s=s.replace(marker,patch,1)
+          p.write_text(s,encoding='utf-8')
 
       - name: Commit patch
         shell: bash
@@ -35,5 +50,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add scorer-o6-v19.html
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m "Fix U6 scorer to load full team rosters [skip ci]"
-          git push
+          git commit -m "Fix U6 match controls production"
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main
