@@ -1,0 +1,45 @@
+name: Fix O6 full team roster loading
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Patch U6 V19 roster source
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('scorer-o6-v19.html')
+          s = p.read_text(encoding='utf-8')
+
+          old = "const mp=await db.from('match_players').select('player_id,team_id,players(first_name,surname)').eq('match_id',matchId);if(mp.error)throw mp.error;const players={};players[teamA]=(mp.data||[]).filter(x=>x.team_id===match.team_a_id&&x.players).map(x=>[x.players.first_name,x.players.surname].filter(Boolean).join(' '));players[teamB]=(mp.data||[]).filter(x=>x.team_id===match.team_b_id&&x.players).map(x=>[x.players.first_name,x.players.surname].filter(Boolean).join(' '));"
+          new = "const mp=await db.from('players').select('id,team_id,first_name,surname').in('team_id',ids);if(mp.error)throw mp.error;const players={};players[teamA]=(mp.data||[]).filter(x=>x.team_id===match.team_a_id).map(x=>[x.first_name,x.surname].filter(Boolean).join(' '));players[teamB]=(mp.data||[]).filter(x=>x.team_id===match.team_b_id).map(x=>[x.first_name,x.surname].filter(Boolean).join(' '));"
+
+          if old not in s:
+              raise SystemExit('Expected roster-loading code not found; no changes made.')
+
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8')
+
+      - name: Commit patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scorer-o6-v19.html
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "Fix U6 scorer to load full team roster"
+          git push
