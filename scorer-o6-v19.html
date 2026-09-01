@@ -4,10 +4,9 @@
 <body style="margin:0;background:#eef2f6;font-family:system-ui,sans-serif">
 <div style="max-width:900px;margin:40px auto;background:#fff;border-radius:16px;padding:24px;font-weight:700">Laai O/6 telkaart…</div>
 <script>
-const q=new URLSearchParams(location.search);
-const match=q.get('match');
-if(match) location.replace('scorer-o6.html?match='+encodeURIComponent(match)+'&v=29');
-else location.replace('scorer-o6.html');
+const q=new URLSearchParams(location.search),match=q.get('match');
+if(match) location.replace('scorer-o6-v20.html?match='+encodeURIComponent(match)+'&resume=1&v=30');
+else location.replace('scorer-o6-v20.html');
 </script>
 </body>
 </html>
