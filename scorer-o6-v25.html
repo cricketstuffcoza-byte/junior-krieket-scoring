@@ -1,27 +1,37 @@
 <!doctype html>
 <html lang="af">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Junior Krieket – O/6 Herstel V25</title><style>html,body{margin:0;background:#eef2f6;font-family:system-ui,sans-serif}#boot{max-width:900px;margin:40px auto;background:#fff;border-radius:16px;padding:24px;font-weight:800}iframe{width:100%;height:100vh;border:0;display:none}</style></head>
-<body><div id="boot">Laai die O/6 herstel V25…</div><iframe id="frame" title="Junior Krieket O/6 Herstel V25"></iframe>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Junior Krieket – O/6 Telkaart</title><style>html,body{margin:0;background:#eef2f6;font-family:system-ui,sans-serif}#boot{max-width:900px;margin:40px auto;background:#fff;border-radius:16px;padding:24px;font-weight:800;line-height:1.5}iframe{width:100%;height:100vh;border:0;display:none}</style></head>
+<body><div id="boot">Laai O/6 telkaart…</div><iframe id="frame" title="Junior Krieket O/6 Telkaart"></iframe>
 <script>
 'use strict';
 (async function(){
- const boot=document.getElementById('boot'),frame=document.getElementById('frame');
+ const boot=document.getElementById('boot'),frame=document.getElementById('frame'),q=new URLSearchParams(location.search),id=q.get('match');
+ const SB_URL='https://moomommajyldjquncnrd.supabase.co',SB_KEY='sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH',headers={apikey:SB_KEY,Authorization:'Bearer '+SB_KEY};
+ const fail=e=>{boot.textContent='Telkaart kon nie gelaai word nie: '+(e?.message||e);boot.style.color='#b42318'};
+ if(!id){fail(Error('Geen wedstryd-ID is verskaf nie.'));return}
  try{
-  const u='./scorer-o6-v20.html?match=54e506e4-dcdc-478c-b223-c748e784f5de&resume=1&v=25&patch='+Date.now();
-  const r=await fetch(u,{cache:'no-store'}); if(!r.ok) throw Error('Die huidige O/6 telkaart kon nie gelaai word nie.');
-  let html=await r.text();
-  const teamPatch='byTeam[teamB]=players.filter(x=>x.team_id===match.team_b_id).map(x=>[x.first_name,x.surname].filter(Boolean).join(\' \')).filter(Boolean);';
-  const teamFix=teamPatch+'["DeAndre Joubert","Tristan Theron"].forEach(n=>{if(!byTeam[teamB].includes(n))byTeam[teamB].push(n)});';
-  if(!html.includes(teamPatch)) throw Error('Die spanlys-kern kon nie gevind word nie.');
-  html=html.replace(teamPatch,teamFix);
-  const availRe=/function available\(\)\{const all=teamPlayers\(\)\.filter\(n=>!state\.bats\[n\]\.out&&!state\.bats\[n\]\.retired\);if\(MATCH\.group===["']U\\/8["']\)return all;const fresh=all\.filter\(n=>!state\.completedPairPlayers\.includes\(n\)\);if\(fresh\.length===1\)return all;return fresh\}/;
-  const availFix='function available(){return teamPlayers().filter(n=>{if(!state.bats[n])state.bats[n]=makeBatter(n);return !state.bats[n].out&&!state.bats[n].retired})}';
-  if(!availRe.test(html)) throw Error('Die kolfpaar-kern kon nie gevind word nie.');
-  html=html.replace(availRe,availFix);
-  const post='frame.srcdoc=html;';
-  if(!html.includes(post)) throw Error('Die herstelblad kon nie voorberei word nie.');
-  frame.srcdoc=html;
-  frame.onload=function(){boot.style.display='none';frame.style.display='block'};
- }catch(e){boot.textContent='Herstel het misluk: '+(e.message||e);boot.style.color='#b42318'}
+  const mr=await fetch(SB_URL+'/rest/v1/matches?id=eq.'+encodeURIComponent(id)+'&select=id,age_group,team_a_id,team_b_id,match_date,match_time,venue',{headers,cache:'no-store'});
+  if(!mr.ok)throw Error('Wedstryd kon nie gevind word nie.');
+  const ma=(await mr.json())[0];
+  if(!ma)throw Error('Hierdie wedstryd bestaan nie in die databasis nie.');
+  if(String(ma.age_group||'').toUpperCase()!=='U/6')throw Error('Hierdie wedstryd is nie n O/6 wedstryd nie.');
+  const ids=[ma.team_a_id,ma.team_b_id].filter(Boolean);
+  const tr=await fetch(SB_URL+'/rest/v1/teams?id=in.('+ids.map(encodeURIComponent).join(',')+')&select=id,name,age_group',{headers,cache:'no-store'});
+  if(!tr.ok)throw Error('Span-inligting kon nie gelaai word nie.');
+  const teams=await tr.json(),tm={};teams.forEach(t=>tm[t.id]=t);
+  const pr=await fetch(SB_URL+'/rest/v1/players?team_id=in.('+ids.map(encodeURIComponent).join(',')+')&select=team_id,first_name,surname,active&order=first_name.asc',{headers,cache:'no-store'});
+  if(!pr.ok)throw Error('Spelerlys kon nie gelaai word nie.');
+  const players=await pr.json(),byTeam={};ids.forEach(t=>byTeam[t]=[]);players.forEach(p=>{if(p.active!==false&&byTeam[p.team_id]){const n=[p.first_name,p.surname].filter(Boolean).join(' ').trim();if(n)byTeam[p.team_id].push(n)}});
+  const teamA=tm[ma.team_a_id]?.name||'Span A',teamB=tm[ma.team_b_id]?.name||'Span B';
+  const matchObj={teamA,teamB,group:'U/6',date:ma.match_date||'',time:String(ma.match_time||'').slice(0,5),venue:ma.venue||''};
+  const cr=await fetch('./o6-v19-core.html?x='+Date.now(),{cache:'no-store'});if(!cr.ok)throw Error('O/6 telkaart-kern kon nie gelaai word nie.');
+  let html=await cr.text();
+  html=html.replace(/const MATCH=\{[\s\S]*?\};\s*const PLAYERS=\{[\s\S]*?\};\s*const RULES=/,'const MATCH='+JSON.stringify(matchObj)+';\nconst PLAYERS='+JSON.stringify({[teamA]:byTeam[ma.team_a_id]||[],[teamB]:byTeam[ma.team_b_id]||[]})+';\nconst RULES=');
+  if(html===await (await fetch('./o6-v19-core.html?x='+Date.now(),{cache:'no-store'})).text())throw Error('Die O/6 wedstryd-instellings kon nie voorberei word nie.');
+  html=html.replace('Plaaslike toetsweergawe • wedstrydinstellings is deur Admin vooraf bepaal','O/6 • huidige wedstryd');
+  const resumeScript=`<script>(function(){'use strict';const KEY_PREFIX='junior_krieket_v19_saved_';function mid(){try{return new URLSearchParams(window.parent.location.search).get('match')}catch(e){return null}}function key(){const id=mid();return id?KEY_PREFIX+id:null}function saveNow(){try{const k=key();if(k&&typeof state!=='undefined'&&state&&state.started)localStorage.setItem(k,JSON.stringify({version:1,savedAt:new Date().toISOString(),state:state,players:typeof PLAYERS!=='undefined'?PLAYERS:null,match:typeof MATCH!=='undefined'?MATCH:null}))}catch(e){}}async function resume(){try{const k=key();let saved=null;if(k){const raw=localStorage.getItem(k);if(raw){const x=JSON.parse(raw);if(x&&x.state&&x.state.started)saved=x}}if(!saved){const id=mid();if(id){const u='${SB_URL}/rest/v1/live_match_state?match_id=eq.'+encodeURIComponent(id)+'&select=state_json,updated_at&limit=1';const r=await fetch(u,{headers:{apikey:'${SB_KEY}',Authorization:'Bearer ${SB_KEY}'},cache:'no-store'});if(r.ok){const a=await r.json(),x=a[0];if(x&&x.state_json&&x.state_json.started)saved={state:x.state_json}}}}if(!saved){alert('Daar is nog geen gestoorde onvoltooide wedstryd vir hierdie wedstryd nie.');return}state=JSON.parse(JSON.stringify(saved.state));undoStack=[];saveNow();render();const s=document.getElementById('status');if(s){s.textContent='Gaan voort met huidige wedstryd. Die gestoorde data is behou en word steeds outomaties gestoor.';s.className='banner blue'}}catch(e){alert('Die huidige wedstryd kon nie hervat word nie: '+(e.message||e))}}const b=document.getElementById('reset');if(b){const n=b.cloneNode(true);n.textContent='▶ GAAN VOORT MET HUIDIGE WEDSTRYD';b.replaceWith(n);n.addEventListener('click',resume)} })();<\/script>`;
+  html=html.replace('</body>',resumeScript+'</body>');
+  frame.srcdoc=html;frame.onload=()=>{boot.style.display='none';frame.style.display='block'};
+ }catch(e){fail(e)}
 })();
 </script></body></html>
