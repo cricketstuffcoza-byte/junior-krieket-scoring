@@ -1,0 +1,54 @@
+name: O6 reset source fix
+
+on:
+  push:
+    branches: [o6-alpha-omega]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch-reset:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout O6 source
+        uses: actions/checkout@v4
+        with:
+          ref: o6-alpha-omega
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add hard reset behaviour
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('Telkaart-O6-ALPHA-OMEGA-V16.html')
+          text = path.read_text(encoding='utf-8')
+
+          marker = '<!-- O6 V19 SOURCE HARD RESET V3 -->'
+          if marker in text:
+              print('Source reset patch already present.')
+              raise SystemExit(0)
+
+          patch = r'''\n<script>\n(function(){\n  'use strict';\n  // U/6 HERSTEL means: discard this match's saved resume state and reload\n  // into the normal BEGIN WEDSTRYD state. Capture phase is required because\n  // the original #reset handler is attached directly to the button.\n  document.addEventListener('click', function(ev){\n    var btn = ev.target && ev.target.closest ? ev.target.closest('#reset') : null;\n    if(!btn) return;\n    ev.preventDefault();\n    ev.stopImmediatePropagation();\n    try { if(typeof state !== 'undefined' && state) state.started = false; } catch(e) {}\n    try {\n      var id = new URLSearchParams(window.parent.location.search).get('match');\n      if(id) localStorage.removeItem('junior_krieket_v19_saved_' + id);\n    } catch(e) {}\n    window.location.reload();\n  }, true);\n})();\n</script>\n<!-- O6 V19 SOURCE HARD RESET V3 -->\n'''
+
+          if '</body>' not in text:
+              raise SystemExit('Could not find </body>.')
+
+          text = text.replace('</body>', patch + '</body>', 1)
+          path.write_text(text, encoding='utf-8')
+          print('Source hard reset patch added.')
+
+      - name: Commit source patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Telkaart-O6-ALPHA-OMEGA-V16.html
+          if git diff --cached --quiet; then
+            echo 'No changes to commit.'
+          else
+            git commit -m 'Fix U6 reset to restart match cleanly'
+            git push origin HEAD:o6-alpha-omega
+          fi
