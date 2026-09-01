@@ -26,9 +26,9 @@
           const margin=Math.max(0,runs-target);
           modal(` + "`" + `
             <h2>🎯 Target Bereik!</h2>
-            <p style="font-size:1.05rem">${S.names[S.bat]} het die target van <strong>${target}</strong> bereik.</p>
+            <p style="font-size:1.05rem">\${S.names[S.bat]} het die target van <strong>\${target}</strong> bereik.</p>
             <p class="muted">Wil julle die wedstryd nou beëindig, of wil julle aanspeel sodat spelers wat nog nie gekolf het nie ook 'n beurt kan kry?</p>
-            <p class="muted"><strong>${runs}/${S.I.wickets}</strong> · ${S.I.balls} wettige balle · ${margin} lopies bo target</p>
+            <p class="muted"><strong>\${runs}/\${S.I.wickets}</strong> · \${S.I.balls} wettige balle · \${margin} lopies bo target</p>
             <div class="row" style="margin-top:14px">
               <button class="green" onclick="window.__o7FinishTarget()">🏆 Eindig Wedstryd</button>
               <button class="blue" onclick="window.__o7ContinueAfterTarget()">🏏 Speel AAN</button>
