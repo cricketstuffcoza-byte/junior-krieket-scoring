@@ -29,8 +29,8 @@ async function init(){
  const tr=await db.from('teams').select('id,name').in('id',ids);if(tr.error)throw tr.error;
  const teamMap=Object.fromEntries((tr.data||[]).map(t=>[t.id,t.name]));
  const teamA=teamMap[match.team_a_id]||'Span A',teamB=teamMap[match.team_b_id]||'Span B';
- const mp=await db.from('match_players').select('player_id,team_id,players(first_name,surname)').eq('match_id',matchId);if(mp.error)throw mp.error;
- const players={};players[teamA]=(mp.data||[]).filter(x=>x.team_id===match.team_a_id&&x.players).map(x=>[x.players.first_name,x.players.surname].filter(Boolean).join(' '));players[teamB]=(mp.data||[]).filter(x=>x.team_id===match.team_b_id&&x.players).map(x=>[x.players.first_name,x.players.surname].filter(Boolean).join(' '));
+ const roster=await db.from('players').select('first_name,surname,team_id').in('team_id',ids);if(roster.error)throw roster.error;
+ const players={};players[teamA]=(roster.data||[]).filter(x=>x.team_id===match.team_a_id).map(x=>[x.first_name,x.surname].filter(Boolean).join(' ')).filter(Boolean);players[teamB]=(roster.data||[]).filter(x=>x.team_id===match.team_b_id).map(x=>[x.first_name,x.surname].filter(Boolean).join(' ')).filter(Boolean);
  if(players[teamA].length<2||players[teamB].length<2)throw Error('Die wedstryd se spelers kon nie volledig gelaai word nie.');
  const response=await fetch(BASE_URL,{cache:'no-store'});if(!response.ok)throw Error('Die bewaarde Alpha & Omega V16 kon nie gelaai word nie ('+response.status+').');
  let html=await response.text();
