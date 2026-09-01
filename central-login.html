@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="af">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Junior Krieket – Aanmeld</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#eef2f6}
+*{box-sizing:border-box}body{margin:0;min-height:100vh}.wrap{min-height:100vh;display:grid;place-items:center;padding:24px}.shell{width:min(100%,980px);display:grid;grid-template-columns:1.05fr .95fr;background:#fff;border-radius:26px;overflow:hidden;box-shadow:0 18px 50px #17203320}.brand{background:#172033;color:#fff;padding:48px 42px;display:flex;flex-direction:column;justify-content:center}.brand h1{font-size:38px;margin:0 0 12px}.brand p{color:#d5deea;line-height:1.55}.badge{display:inline-flex;width:max-content;margin-top:18px;padding:7px 12px;border-radius:999px;background:#fff;color:#172033;font-size:12px;font-weight:900}.content{padding:38px}.tabs{display:flex;gap:8px;background:#f2f4f7;padding:5px;border-radius:13px;margin-bottom:24px}.tab{flex:1;border:0;background:transparent;border-radius:9px;padding:11px;font-weight:900;color:#667085;cursor:pointer}.tab.active{background:#fff;color:#172033;box-shadow:0 2px 8px #17203312}.panel.hidden{display:none}h2{margin:0 0 7px;font-size:25px}p.muted{color:#667085}.field{margin:16px 0}.field label{display:block;font-weight:800;font-size:14px;margin-bottom:7px}.field input{width:100%;padding:13px 14px;border:1px solid #ccd3dc;border-radius:11px;font:inherit}.primary,.choice{width:100%;border:0;border-radius:12px;padding:14px 16px;font-weight:900;cursor:pointer}.primary{background:#172033;color:#fff}.choice{background:#f7f8fa;text-align:left;border:1px solid #e1e5ea;margin-top:11px;color:#172033}.choice:hover{background:#eef2f6}.choice .title{display:block;font-size:16px}.choice .sub{display:block;margin-top:4px;color:#667085;font-size:13px;font-weight:600}.choice.disabled{cursor:not-allowed;opacity:.55;background:#eceff2}.msg{min-height:22px;margin:12px 0 0;font-size:14px}.error{color:#b42318}.ok{color:#067647}.small{font-size:12px;color:#667085;margin-top:18px;line-height:1.5}@media(max-width:760px){.shell{grid-template-columns:1fr}.brand{padding:30px}.brand h1{font-size:30px}.content{padding:26px}}
+</style>
+</head>
+<body>
+<div class="wrap"><div class="shell">
+<section class="brand"><div><div style="font-size:52px">🏏</div><h1>Junior Krieket</h1><p>Een sentrale plek vir jou Junior Krieket-rekeninge en al die portale waartoe jy toegang het.</p><span class="badge">CENTRALE AANMELDING</span></div></section>
+<section class="content">
+<div class="tabs"><button class="tab active" id="loginTab">Meld aan</button><button class="tab" id="registerTab">Registreer</button></div>
+<div id="loginPanel" class="panel"><h2>Welkom terug</h2><p class="muted">Meld aan met jou Junior Krieket-rekening.</p><form id="loginForm"><div class="field"><label for="loginEmail">E-posadres</label><input id="loginEmail" type="email" autocomplete="email" required></div><div class="field"><label for="loginPassword">Wagwoord</label><input id="loginPassword" type="password" autocomplete="current-password" required></div><button class="primary" type="submit">🔐 Meld aan</button></form><p id="loginMsg" class="msg"></p><p class="small">Na suksesvolle aanmelding neem ons jou na jou portaal-keuseskerm.</p></div>
+<div id="registerPanel" class="panel hidden"><h2>Skep 'n rekening</h2><p class="muted">Kies die tipe rekening wat jy nou wil registreer.</p><button class="choice" id="parentRegister" type="button"><span class="title">👨‍👩‍👧 Registreer as Ouer / Voog</span><span class="sub">Skep 'n ouer/voog-rekening en gaan voort na die registrasie.</span></button><button class="choice disabled" type="button" disabled><span class="title">🧒 Nuwe spelerregistrasie</span><span class="sub">Kom binnekort beskikbaar.</span></button><p id="registerMsg" class="msg"></p></div>
+</section></div></div>
+<script>
+(function(){
+ const SUPABASE_URL='https://sbncjeezviyqitwgutvk.supabase.co';
+ const SUPABASE_KEY='sb_publishable_ueyMmVM6wP-4y9HrEMFubQ_ydIxrKZf';
+ const db=globalThis.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+ const $=id=>document.getElementById(id);
+ function tab(which){const login=which==='login';$('loginTab').classList.toggle('active',login);$('registerTab').classList.toggle('active',!login);$('loginPanel').classList.toggle('hidden',!login);$('registerPanel').classList.toggle('hidden',login)}
+ $('loginTab').onclick=()=>tab('login');$('registerTab').onclick=()=>tab('register');
+ $('parentRegister').onclick=()=>location.href='parent-register.html';
+ $('loginForm').addEventListener('submit',async e=>{e.preventDefault();const msg=$('loginMsg');msg.className='msg';msg.textContent='Meld aan…';try{const r=await db.auth.signInWithPassword({email:$('loginEmail').value.trim(),password:$('loginPassword').value});if(r.error)throw r.error;if(!r.data.session)throw Error('Geen aktiewe sessie kon geskep word nie.');location.replace('portal-hub.html')}catch(err){msg.textContent=err.message||String(err);msg.className='msg error'}});
+ db.auth.getSession().then(({data})=>{if(data.session)location.replace('portal-hub.html')});
+})();
+</script>
+</body>
+</html>
