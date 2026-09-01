@@ -39,6 +39,9 @@
   html=html.replace(/const PLAYERS=\{[\s\S]*?\};\s*const RULES=/,'const PLAYERS='+JSON.stringify(byTeam)+';\nconst RULES=');
   html=html.replace(/<div class="locked">Blitzwolwe<\/div>/g,'<div class="locked">'+teamA+'</div>').replace(/<div class="locked">Sixers<\/div>/g,'<div class="locked">'+teamB+'</div>').replace(/<option>Blitzwolwe<\/option>/g,'<option>'+teamA+'</option>').replace(/<option>Sixers<\/option>/g,'<option>'+teamB+'</option>');
   html=html.replace('Plaaslike toetsweergawe • wedstrydinstellings is deur Admin vooraf bepaal','O/6 Alpha & Omega • wedstrydinstellings is deur Admin vooraf bepaal');
+  const availRe=/function available\(\)\{const all=teamPlayers\(\)\.filter\(n=>!state\.bats\[n\]\.out&&!state\.bats\[n\]\.retired\);if\(MATCH\.group===["']U\\/8["']\)return all;const fresh=all\.filter\(n=>!state\.completedPairPlayers\.includes\(n\);if\(fresh\.length===1\)return all;return fresh\}/;
+  const availFix='function available(){const all=teamPlayers().filter(n=>{if(!state.bats[n])state.bats[n]=makeBatter(n);return !state.bats[n].out&&!state.bats[n].retired;});if(MATCH.group==="U/8")return all;const fresh=all.filter(n=>!state.completedPairPlayers.includes(n));if(fresh.length===1)return all;return fresh}';
+  if(availRe.test(html))html=html.replace(availRe,availFix);
   frame.srcdoc=html;
   frame.onload=function(){try{
    const stateJson=JSON.stringify(backup.state);
