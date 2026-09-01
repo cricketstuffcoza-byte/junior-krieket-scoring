@@ -14,13 +14,12 @@
     const html=await new Response(stream).text();
     const injected=`<script>
       (function(){
-        // U/7 target behaviour: reaching the target does NOT have to end the match.
-        // The coach may finish immediately or continue so remaining players can bat.
         let targetDecisionMade=false;
         const originalAfterLegalBall=window.afterLegalBall;
         const originalEndInnings=window.endInnings;
 
         function showTargetChoice(){
+          if(!window.S || !S.I || S.innings!==2 || S.target==null || S.I.runs<S.target) return;
           const target=S.target;
           const runs=S.I.runs;
           const margin=Math.max(0,runs-target);
@@ -49,10 +48,8 @@
           if(typeof saveMatch==='function') saveMatch(true);
         };
 
-        // Catch scorecards whose original engine ends the innings immediately
-        // when the target is reached. This runs before the original end logic.
         window.endInnings=function(reason){
-          if(S && S.innings===2 && S.target!=null && S.I && S.I.runs>=S.target && !targetDecisionMade){
+          if(window.S && S.innings===2 && S.target!=null && S.I && S.I.runs>=S.target && !targetDecisionMade){
             targetDecisionMade=true;
             S.winner=S.bat;
             S.resultReason='target';
@@ -63,7 +60,7 @@
         };
 
         window.afterLegalBall=function(){
-          if(S && S.innings===2 && S.target!=null && S.I && S.I.runs>=S.target){
+          if(window.S && S.innings===2 && S.target!=null && S.I && S.I.runs>=S.target){
             if(!targetDecisionMade){
               targetDecisionMade=true;
               S.winner=S.bat;
@@ -71,9 +68,6 @@
               showTargetChoice();
               return;
             }
-            // The target was already accepted as a reason to continue.
-            // Temporarily hide the target from the original target check so
-            // over/pair processing continues exactly as normal.
             const realTarget=S.target;
             S.target=Number.POSITIVE_INFINITY;
             try{return originalAfterLegalBall.apply(this,arguments);}
@@ -81,6 +75,16 @@
           }
           return originalAfterLegalBall.apply(this,arguments);
         };
+
+        // Also handle a resumed innings that is already at/above target.
+        setTimeout(()=>{
+          if(window.S && S.innings===2 && S.target!=null && S.I && S.I.runs>=S.target && !targetDecisionMade){
+            targetDecisionMade=true;
+            S.winner=S.bat;
+            S.resultReason='target';
+            showTargetChoice();
+          }
+        },400);
 
         (function(){
           const matchId=new URLSearchParams(location.search).get('match');
@@ -94,7 +98,7 @@
           setTimeout(()=>clearInterval(timer),15000);
         })();
       })();
-    <\\/script>`;
+    <\/script>`;
     document.open();document.write(html.replace('</body>',injected+'</body>'));document.close();
   }catch(e){document.getElementById('loading').textContent='Kon O/7 telkaart nie laai nie: '+e.message;console.error(e);}
 })();
