@@ -49,6 +49,19 @@
           if(typeof saveMatch==='function') saveMatch(true);
         };
 
+        // Catch scorecards whose original engine ends the innings immediately
+        // when the target is reached. This runs before the original end logic.
+        window.endInnings=function(reason){
+          if(S && S.innings===2 && S.target!=null && S.I && S.I.runs>=S.target && !targetDecisionMade){
+            targetDecisionMade=true;
+            S.winner=S.bat;
+            S.resultReason='target';
+            showTargetChoice();
+            return;
+          }
+          return originalEndInnings.apply(this,arguments);
+        };
+
         window.afterLegalBall=function(){
           if(S && S.innings===2 && S.target!=null && S.I && S.I.runs>=S.target){
             if(!targetDecisionMade){
@@ -67,12 +80,6 @@
             finally{S.target=realTarget;}
           }
           return originalAfterLegalBall.apply(this,arguments);
-        };
-
-        // When the coach or the final available pair ends the innings, allow
-        // the original end-of-innings logic to finalize the match normally.
-        window.endInnings=function(){
-          return originalEndInnings.apply(this,arguments);
         };
 
         (function(){
