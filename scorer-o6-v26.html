@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="af">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Junior Krieket – O/6 Herstel V26</title><style>html,body{margin:0;background:#eef2f6;font-family:system-ui,sans-serif}#boot{max-width:900px;margin:40px auto;background:#fff;border-radius:16px;padding:24px;font-weight:800}iframe{width:100%;height:100vh;border:0;display:none}</style></head>
+<body><div id="boot">Laai die O/6 herstel V26…</div><iframe id="frame" title="Junior Krieket O/6 Herstel V26"></iframe>
+<script>
+'use strict';
+(async function(){
+ const boot=document.getElementById('boot'),frame=document.getElementById('frame');
+ try{
+  const u='./scorer-o6-v20.html?match=54e506e4-dcdc-478c-b223-c748e784f5de&resume=1&v=26&patch='+Date.now();
+  const r=await fetch(u,{cache:'no-store'}); if(!r.ok) throw Error('Die huidige O/6 telkaart kon nie gelaai word nie.');
+  let html=await r.text();
+  const teamPatch='byTeam[teamB]=players.filter(x=>x.team_id===match.team_b_id).map(x=>[x.first_name,x.surname].filter(Boolean).join(\' \')).filter(Boolean);';
+  const teamFix=teamPatch+'["DeAndre Joubert","Tristan Theron"].forEach(n=>{if(!byTeam[teamB].includes(n))byTeam[teamB].push(n)});';
+  if(!html.includes(teamPatch)) throw Error('Die spanlys-kern kon nie gevind word nie.');
+  html=html.replace(teamPatch,teamFix);
+  /*
+     Kolfpaar-reël:
+     - Eerste verandering en alle normale daaropvolgende veranderinge:
+       wys slegs spelers wat nog nooit 'n kolfpaar voltooi het nie.
+     - Sodra presies EEN nuwe speler oorbly, word die volledige lys weer
+       beskikbaar. Dit laat die laaste nuwe speler toe om saam met 'n
+       historiese kolwer te vorm.
+     - Moenie die historiese spelers permanent terugbring nie.
+  */
+  const availRe=/function available\(\)\{const all=teamPlayers\(\)\.filter\(n=>!state\.bats\[n\]\.out&&!state\.bats\[n\]\.retired\);if\(MATCH\.group===["']U\\/8["']\)return all;const fresh=all\.filter\(n=>!state\.completedPairPlayers\.includes\(n\)\);if\(fresh\.length===1\)return all;return fresh\}/;
+  const availFix='function available(){const all=teamPlayers().filter(n=>{if(!state.bats[n])state.bats[n]=makeBatter(n);return !state.bats[n].out&&!state.bats[n].retired;});if(MATCH.group==="U/8")return all;const fresh=all.filter(n=>!state.completedPairPlayers.includes(n));if(fresh.length===1)return all;return fresh}';
+  if(!availRe.test(html)) throw Error('Die kolfpaar-kern kon nie gevind word nie.');
+  html=html.replace(availRe,availFix);
+  const post='frame.srcdoc=html;';
+  if(!html.includes(post)) throw Error('Die herstelblad kon nie voorberei word nie.');
+  frame.srcdoc=html;
+  frame.onload=function(){boot.style.display='none';frame.style.display='block'};
+ }catch(e){boot.textContent='Herstel het misluk: '+(e.message||e);boot.style.color='#b42318'}
+})();
+</script></body></html>
