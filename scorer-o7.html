@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="af"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>O/7 Pair Telkaart</title></head>
+<body style="margin:0;background:#0f172a;color:#fff;font-family:system-ui,sans-serif">
+<div id="loading" style="padding:24px;text-align:center">Laai O/7 telkaart…</div>
+<script>
+(async()=>{
+  try{
+    const parts=await Promise.all([1,2,3,4].map(n=>fetch(`o7chunk${n}.txt?${Date.now()}`).then(r=>{if(!r.ok)throw new Error('Chunk '+n+' kon nie laai nie');return r.text();})));
+    const b64=parts.join('').replace(/\s+/g,'');
+    const bin=atob(b64), bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+    if(!('DecompressionStream' in window))throw new Error('Hierdie blaaier ondersteun nie die nodige telkaart-kompressie nie.');
+    const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+    const html=await new Response(stream).text();
+    const injected=`<script>
+      (function(){
+        const matchId=new URLSearchParams(location.search).get('match');
+        if(!matchId)return;
+        const timer=setInterval(()=>{
+          const sel=document.getElementById('matchSelect');
+          if(!sel)return;
+          const opt=[...sel.options].find(o=>String(o.value)===String(matchId));
+          if(opt){sel.value=String(matchId);sel.dispatchEvent(new Event('change'));clearInterval(timer);}
+        },300);
+        setTimeout(()=>clearInterval(timer),15000);
+      })();
+    <\\/script>`;
+    document.open();document.write(html.replace('</body>',injected+'</body>'));document.close();
+  }catch(e){document.getElementById('loading').textContent='Kon O/7 telkaart nie laai nie: '+e.message;console.error(e);}
+})();
+</script></body></html>
