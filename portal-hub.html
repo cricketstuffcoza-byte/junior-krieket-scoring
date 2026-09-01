@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="af">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Junior Krieket – My Portale</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#eef2f6}*{box-sizing:border-box}body{margin:0}.wrap{max-width:1120px;margin:auto;padding:26px}.top{background:#172033;color:#fff;border-radius:22px;padding:28px 30px;display:flex;justify-content:space-between;align-items:center;gap:20px;box-shadow:0 8px 28px #17203325}.top h1{margin:0;font-size:30px}.top p{margin:6px 0 0;color:#d5deea}.logout{border:0;border-radius:11px;padding:11px 15px;font-weight:900;cursor:pointer;background:#fff;color:#172033}.status{margin:18px 0;color:#667085}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.card{background:#fff;border-radius:18px;padding:22px;box-shadow:0 4px 18px #17203312;border:1px solid #e7eaf0;display:flex;flex-direction:column;min-height:205px}.icon{font-size:38px}.card h2{margin:12px 0 6px;font-size:20px}.card p{margin:0;color:#667085;line-height:1.45;flex:1}.open{margin-top:18px;width:100%;border:0;border-radius:11px;padding:12px 14px;font-weight:900;cursor:pointer;background:#172033;color:#fff}.disabled{background:#e9edf1;color:#98a2b3;cursor:not-allowed}.notice{margin-top:18px;background:#fff;border:1px solid #e7eaf0;border-radius:16px;padding:16px;color:#667085;font-size:13px}@media(max-width:850px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.wrap{padding:14px}.top{padding:22px;align-items:flex-start}.top h1{font-size:25px}.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body><div class="wrap">
+<header class="top"><div><h1>🏏 Junior Krieket</h1><p id="welcome">Laai jou portale…</p></div><button class="logout" id="logout">Teken uit</button></header>
+<div id="status" class="status">Bepaal jou toegang…</div><main id="grid" class="grid"></main><div class="notice">🔒 Jou portaaltoegang word deur jou rekening se rol en toekomstige toegangsregte bepaal. Die bestaande portale word nie deur hierdie skerm verander nie.</div>
+</div>
+<script>
+(function(){
+ const SUPABASE_URL='https://sbncjeezviyqitwgutvk.supabase.co',SUPABASE_KEY='sb_publishable_ueyMmVM6wP-4y9HrEMFubQ_ydIxrKZf';
+ const db=globalThis.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});const $=id=>document.getElementById(id);
+ const portals={admin:{icon:'🛠️',title:'Admin Portaal',desc:'Administrasie, spanne, spelers, afrigters en wedstryde.',href:'admin-v24.html'},coach:{icon:'🏏',title:'Afrigter Portaal',desc:'Spanne, spelers, ontwikkeling en afrigterfunksies.',href:'coach-v24.html'},parent:{icon:'👨‍👩‍👧',title:'Ouer / Voog Portaal',desc:'Kindprofiele, statistieke en ouerfunksies.',href:'parent-v3.html'}};
+ function card(key){const p=portals[key];return '<section class="card"><div class="icon">'+p.icon+'</div><h2>'+p.title+'</h2><p>'+p.desc+'</p><button class="open" data-href="'+p.href+'">Open portaal →</button></section>'}
+ document.addEventListener('click',e=>{const b=e.target.closest('[data-href]');if(b)location.href=b.dataset.href});
+ $('logout').onclick=async()=>{await db.auth.signOut();location.replace('central-login.html')};
+ async function init(){const s=await db.auth.getSession();if(!s.data.session){location.replace('central-login.html');return}const user=s.data.session.user;const p=await db.from('profiles').select('full_name,email,role').eq('id',user.id).maybeSingle();if(p.error)throw p.error;if(!p.data){throw Error('Geen Junior Krieket-profiel is aan hierdie rekening gekoppel nie.')}const role=p.data.role;$('welcome').textContent='Welkom, '+(p.data.full_name||user.email)+' • Kies jou portaal';let keys=[];if(role==='admin')keys=['admin','coach','parent'];else if(role==='coach')keys=['coach'];else if(role==='parent')keys=['parent'];$('grid').innerHTML=keys.length?keys.map(card).join(''):'<section class="card"><div class="icon">🔒</div><h2>Geen portaaltoegang</h2><p>Jou rekening het tans geen aktiewe portaaltoegang nie.</p></section>';$('status').textContent=keys.length?'Beskikbare portale':'Geen portale beskikbaar nie';}
+ init().catch(e=>{$('status').textContent=e.message||String(e);$('status').style.color='#b42318';});
+})();
+</script></body></html>
