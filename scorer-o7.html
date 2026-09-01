@@ -14,17 +14,80 @@
     const html=await new Response(stream).text();
     const injected=`<script>
       (function(){
-        const matchId=new URLSearchParams(location.search).get('match');
-        if(!matchId)return;
-        const timer=setInterval(()=>{
-          const sel=document.getElementById('matchSelect');
-          if(!sel)return;
-          const opt=[...sel.options].find(o=>String(o.value)===String(matchId));
-          if(opt){sel.value=String(matchId);sel.dispatchEvent(new Event('change'));clearInterval(timer);}
-        },300);
-        setTimeout(()=>clearInterval(timer),15000);
+        // U/7 target behaviour: reaching the target does NOT have to end the match.
+        // The coach may finish immediately or continue so remaining players can bat.
+        let targetDecisionMade=false;
+        const originalAfterLegalBall=window.afterLegalBall;
+        const originalEndInnings=window.endInnings;
+
+        function showTargetChoice(){
+          const target=S.target;
+          const runs=S.I.runs;
+          const margin=Math.max(0,runs-target);
+          modal(` + "`" + `
+            <h2>🎯 Target Bereik!</h2>
+            <p style="font-size:1.05rem">${S.names[S.bat]} het die target van <strong>${target}</strong> bereik.</p>
+            <p class="muted">Wil julle die wedstryd nou beëindig, of wil julle aanspeel sodat spelers wat nog nie gekolf het nie ook 'n beurt kan kry?</p>
+            <p class="muted"><strong>${runs}/${S.I.wickets}</strong> · ${S.I.balls} wettige balle · ${margin} lopies bo target</p>
+            <div class="row" style="margin-top:14px">
+              <button class="green" onclick="window.__o7FinishTarget()">🏆 Eindig Wedstryd</button>
+              <button class="blue" onclick="window.__o7ContinueAfterTarget()">🏏 Speel AAN</button>
+            </div>
+          ` + "`" + `);
+        }
+
+        window.__o7FinishTarget=function(){
+          S.winner=S.bat;
+          S.resultReason='target';
+          originalEndInnings.call(window,'Target bereik · Wedstryd deur afrigter beëindig');
+        };
+
+        window.__o7ContinueAfterTarget=function(){
+          targetDecisionMade=true;
+          closeModal();
+          renderLive();
+          if(typeof saveMatch==='function') saveMatch(true);
+        };
+
+        window.afterLegalBall=function(){
+          if(S && S.innings===2 && S.target!=null && S.I && S.I.runs>=S.target){
+            if(!targetDecisionMade){
+              targetDecisionMade=true;
+              S.winner=S.bat;
+              S.resultReason='target';
+              showTargetChoice();
+              return;
+            }
+            // The target was already accepted as a reason to continue.
+            // Temporarily hide the target from the original target check so
+            // over/pair processing continues exactly as normal.
+            const realTarget=S.target;
+            S.target=Number.POSITIVE_INFINITY;
+            try{return originalAfterLegalBall.apply(this,arguments);}
+            finally{S.target=realTarget;}
+          }
+          return originalAfterLegalBall.apply(this,arguments);
+        };
+
+        // When the coach or the final available pair ends the innings, allow
+        // the original end-of-innings logic to finalize the match normally.
+        window.endInnings=function(){
+          return originalEndInnings.apply(this,arguments);
+        };
+
+        (function(){
+          const matchId=new URLSearchParams(location.search).get('match');
+          if(!matchId)return;
+          const timer=setInterval(()=>{
+            const sel=document.getElementById('matchSelect');
+            if(!sel)return;
+            const opt=[...sel.options].find(o=>String(o.value)===String(matchId));
+            if(opt){sel.value=String(matchId);sel.dispatchEvent(new Event('change'));clearInterval(timer);}
+          },300);
+          setTimeout(()=>clearInterval(timer),15000);
+        })();
       })();
-    <\/script>`;
+    <\\/script>`;
     document.open();document.write(html.replace('</body>',injected+'</body>'));document.close();
   }catch(e){document.getElementById('loading').textContent='Kon O/7 telkaart nie laai nie: '+e.message;console.error(e);}
 })();
