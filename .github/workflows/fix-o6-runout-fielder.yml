@@ -1,0 +1,42 @@
+name: Restore U6 runout fielder selection
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore fielder chooser after runout batter selection
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p = Path('scorer-o6-v19.html')
+          s = p.read_text(encoding='utf-8')
+
+          old = "state.pendingRunOutBatter=decodeURIComponent(b.getAttribute('data-v19-batter'));e('v19RunoutModal').classList.add('hidden');finishRunout()"
+          new = "state.pendingRunOutBatter=decodeURIComponent(b.getAttribute('data-v19-batter'));e('v19RunoutModal').classList.add('hidden');openFielderChooser('RUN_OUT')"
+
+          if old not in s:
+              raise SystemExit('Expected runout selection code was not found.')
+
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8')
+
+      - name: Commit patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scorer-o6-v19.html
+          git commit -m "Restore fielder selection for U6 runouts"
+          git push
