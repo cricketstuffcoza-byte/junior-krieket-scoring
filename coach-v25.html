@@ -17,21 +17,50 @@ body{display:flex;flex-direction:column}
   <div class="linksHead"><div><div class="linksTitle">🔗 Belangrike skakels</div><div class="linksSub">Deel vinnig registrasie en die huidige live telling.</div></div></div>
   <div id="linkGrid" class="linkGrid"></div>
 </div></section>
-<div id="iframeWrap"><iframe id="portal" src="coach-v25-base.html?v=20260902-homework4" title="Afrigter Portaal V25"></iframe></div>
+<div id="iframeWrap"><iframe id="portal" src="coach-v25-base.html?v=20260902-homework5" title="Afrigter Portaal V25"></iframe></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 'use strict';
 (function(){
-const U='https://moomommajyldjquncnrd.supabase.co',K='sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH';
-const db=supabase.createClient(U,K,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
-const REG='https://junior-krieket-scoring.pages.dev/parent-register.html';
-const LIVE='https://junior-krieket-scoring.pages.dev/live-score.html?match=';
-const grid=document.getElementById('linkGrid');let busy=false;
-const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-function card(title,desc,url,isLive){return `<div class="linkCard"><div class="linkTop"><div><span class="linkName">${esc(title)}</span>${isLive?'<span class="live">● LIVE</span>':''}<div class="linksSub">${esc(desc)}</div></div></div><div class="url">${esc(url)}</div><div class="actions"><button class="copy" data-copy="${esc(url)}">📋 Kopieer skakel</button><button class="wa" data-wa="${esc(url)}">💬 WhatsApp</button><button class="share" data-share="${esc(url)}">📤 Deel</button></div></div>`}
-function bind(){grid.querySelectorAll('[data-copy]').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.copy);const old=b.textContent;b.textContent='✓ Gekopieer';setTimeout(()=>b.textContent=old,1400)}catch{window.prompt('Kopieer hierdie skakel:',b.dataset.copy)}});grid.querySelectorAll('[data-wa]').forEach(b=>b.onclick=()=>window.open('https://wa.me/?text='+encodeURIComponent('Junior Krieket skakel\n'+b.dataset.wa),'_blank'));grid.querySelectorAll('[data-share]').forEach(b=>b.onclick=async()=>{const u=b.dataset.share;try{if(navigator.share){await navigator.share({title:'Junior Krieket',url:u})}else{await navigator.clipboard.writeText(u);alert('Skakel gekopieer.')}}catch(e){if(e.name!=='AbortError'){window.prompt('Kopieer hierdie skakel:',u)}}})}
-async function load(){if(busy)return;busy=true;try{let html=card('👨‍👩‍👧 Ouer / Voog registrasie','Deel hierdie skakel met ’n ouer of voog wat nog moet registreer.',REG,false);const s=(await db.auth.getSession()).data.session;if(s){const q=await db.from('matches').select('id,team_a_id,team_b_id,status').or('coach_user_id.eq.'+s.user.id+',scorer_user_id.eq.'+s.user.id).eq('status','LIVE');if(!q.error&&q.data?.length){const ids=[...new Set(q.data.flatMap(x=>[x.team_a_id,x.team_b_id]).filter(Boolean))];const names={};if(ids.length){const t=await db.from('teams').select('id,name').in('id',ids);(t.data||[]).forEach(x=>names[x.id]=x.name)}q.data.forEach(x=>{html+=card('🏏 Live telling – '+(names[x.team_a_id]||'Span A')+' vs '+(names[x.team_b_id]||'Span B'),'Die wedstryd is tans LIVE.',LIVE+x.id,true)})}}grid.innerHTML=html;bind()}finally{busy=false}}
-load();setInterval(load,10000);db.auth.onAuthStateChange(()=>setTimeout(load,300));
+  // Safety guard: this panel belongs ONLY to the Coach V25 route.
+  // If this file is ever embedded/reused by another portal or scorecard route,
+  // remove the panel immediately and leave the underlying page untouched.
+  const path=(window.location.pathname||'').replace(/\/+$/,'')||'/';
+  const isCoachRoute=path==='/coach-v25'||path==='/coach-v25.html';
+  if(!isCoachRoute){
+    const panel=document.getElementById('linksPanel');
+    if(panel)panel.remove();
+    return;
+  }
+  const U='https://moomommajyldjquncnrd.supabase.co',K='sb_publishable_MIdISKN9MwYu5A8IzhYGBQ_VBBlEGAH';
+  const db=supabase.createClient(U,K,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+  const REG='https://junior-krieket-scoring.pages.dev/parent-register.html';
+  const LIVE='https://junior-krieket-scoring.pages.dev/live-score.html?match=';
+  const grid=document.getElementById('linkGrid');let busy=false;
+  const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  function card(title,desc,url,isLive){return `<div class="linkCard"><div class="linkTop"><div><span class="linkName">${esc(title)}</span>${isLive?'<span class="live">● LIVE</span>':''}<div class="linksSub">${esc(desc)}</div></div></div><div class="url">${esc(url)}</div><div class="actions"><button class="copy" data-copy="${esc(url)}">📋 Kopieer skakel</button><button class="wa" data-wa="${esc(url)}">💬 WhatsApp</button><button class="share" data-share="${esc(url)}">📤 Deel</button></div></div>`}
+  function bind(){
+    grid.querySelectorAll('[data-copy]').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.copy);const old=b.textContent;b.textContent='✓ Gekopieer';setTimeout(()=>b.textContent=old,1400)}catch{window.prompt('Kopieer hierdie skakel:',b.dataset.copy)}});
+    grid.querySelectorAll('[data-wa]').forEach(b=>b.onclick=()=>window.open('https://wa.me/?text='+encodeURIComponent('Junior Krieket skakel\n'+b.dataset.wa),'_blank'));
+    grid.querySelectorAll('[data-share]').forEach(b=>b.onclick=async()=>{const u=b.dataset.share;try{if(navigator.share){await navigator.share({title:'Junior Krieket',url:u})}else{await navigator.clipboard.writeText(u);alert('Skakel gekopieer.')}}catch(e){if(e.name!=='AbortError'){window.prompt('Kopieer hierdie skakel:',u)}}});
+  }
+  async function load(){
+    if(busy)return;busy=true;
+    try{
+      let html=card('👨‍👩‍👧 Ouer / Voog registrasie','Deel hierdie skakel met ’n ouer of voog wat nog moet registreer.',REG,false);
+      const s=(await db.auth.getSession()).data.session;
+      if(s){
+        const q=await db.from('matches').select('id,team_a_id,team_b_id,status').or('coach_user_id.eq.'+s.user.id+',scorer_user_id.eq.'+s.user.id).eq('status','LIVE');
+        if(!q.error&&q.data?.length){
+          const ids=[...new Set(q.data.flatMap(x=>[x.team_a_id,x.team_b_id]).filter(Boolean))],names={};
+          if(ids.length){const t=await db.from('teams').select('id,name').in('id',ids);(t.data||[]).forEach(x=>names[x.id]=x.name)}
+          q.data.forEach(x=>{html+=card('🏏 Live telling – '+(names[x.team_a_id]||'Span A')+' vs '+(names[x.team_b_id]||'Span B'),'Die wedstryd is tans LIVE.',LIVE+x.id,true)})
+        }
+      }
+      grid.innerHTML=html;bind();
+    }finally{busy=false}
+  }
+  load();setInterval(load,10000);db.auth.onAuthStateChange(()=>setTimeout(load,300));
 })();
 </script>
 </body></html>
