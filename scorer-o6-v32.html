@@ -1,45 +1,11 @@
 <!doctype html><html lang="af"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Junior Krieket – O/6 Telkaart V32</title><style>html,body{margin:0;background:#eef2f6;width:100%;height:100%;overflow:hidden}iframe{width:100%;height:100%;border:0}</style></head><body><iframe id="score" title="Junior Krieket O/6 Telkaart"></iframe><script>
 'use strict';
 const q=location.search,outer=document.getElementById('score');outer.src='scorer-o6-v31.html'+q+'&fix=v32';
-function innerDoc(){try{const d=outer.contentDocument;if(!d)return null;const f=d.getElementById('frame');return f&&f.contentDocument?f.contentDocument:null}catch(e){return null}}
+function innerDoc(){try{const d=outer.contentDocument,f=d&&d.getElementById('frame');return f&&f.contentDocument?f.contentDocument:null}catch(e){return null}}
 function innerWin(){try{const d=outer.contentDocument,f=d&&d.getElementById('frame');return f&&f.contentWindow?f.contentWindow:null}catch(e){return null}}
-let resumeBoundaryForced=false;
-function patch(){try{const d=innerDoc(),w=innerWin(),s=w&&w.__juniorState;if(!d||!w||!s)return;
-/* HARD RESUME / END-OF-OVER LOCK: a saved match at an over boundary must require a fresh bowler selection. */
-const t=s.score&&s.batting?s.score[s.batting]:null,legal=t?Number(t.legalBalls||0):0;
-const boundary=s.started&&!s.completed&&legal>0&&legal%8===0;
-const bp=d.getElementById('bowlerPanel');
-if(boundary&&!resumeBoundaryForced){
-  resumeBoundaryForced=true;
-  s.bowler=null;
-  s.selectedBowler=null;
-  if(typeof w.openBowler==='function')w.openBowler();
-  if(typeof w.render==='function')w.render();
-}
-/* If the panel is open, scoring must stay locked until a bowler is confirmed. */
-if(boundary&&bp&&!bp.classList.contains('hidden')){
-  s.bowler=null;
-  if(typeof w.render==='function')w.render();
-}
-/* Final bowler exception: if exactly one NEW bowler remains, unlock previous bowlers too. */
-const bc=d.getElementById('bowlerChoices');
-if(bp&&!bp.classList.contains('hidden')&&bc){
-  const enabled=[...bc.querySelectorAll('button')].filter(b=>!b.disabled);
-  if(enabled.length===1){
-    const previous=Array.isArray(s.usedBowlers)?s.usedBowlers.slice():[];
-    previous.forEach(name=>{
-      const existing=[...bc.querySelectorAll('button')].find(b=>b.textContent.trim().replace(/ ✓.*$/,'')===name);
-      if(existing){
-        existing.disabled=false;existing.textContent=name;
-        if(!existing.dataset.v32wired){existing.dataset.v32wired='1';existing.addEventListener('click',()=>{[...bc.querySelectorAll('button')].forEach(x=>x.classList.remove('selected'));existing.classList.add('selected');s.selectedBowler=name;const c=d.getElementById('confirmBowler');if(c)c.disabled=false})}
-      }else{
-        const b=d.createElement('button');b.type='button';b.className='btn choice';b.textContent=name;b.addEventListener('click',()=>{[...bc.querySelectorAll('button')].forEach(x=>x.classList.remove('selected'));b.classList.add('selected');s.selectedBowler=name;const c=d.getElementById('confirmBowler');if(c)c.disabled=false});bc.appendChild(b)
-      }
-    });
-    const msg=d.getElementById('bowlerMessage');if(msg)msg.textContent='Laaste nuwe bouler: kies die laaste nuwe bouler, of enige vorige bouler wat reeds geboul het.';
-  }
-}
-/* Manual strike swap stays available from v31. */
-}catch(e){console.warn('O/6 v32 patch',e)}}
-setInterval(patch,150);outer.addEventListener('load',()=>setTimeout(patch,300));
-</script></body></html>
+function addBtn(d,parent,id,text,cls,fn){if(!parent||d.getElementById(id))return;const b=d.createElement('button');b.id=id;b.type='button';b.className=cls||'btn';b.textContent=text;b.style.marginTop='8px';b.addEventListener('click',fn);parent.appendChild(b)}
+function pdf(){try{const d=innerDoc(),w=innerWin(),s=w&&w.__juniorState;if(!d||!s)return alert('Wedstryddata is nog nie gereed nie.');const teams=Object.keys(s.score||{}),bat=s.batting||teams[0]||'Span',opp=teams.find(x=>x!==bat)||'Teenstander',t=s.score?.[bat]||{},o=s.score?.[opp]||{};const rows=Object.values(s.bats||{}).filter(x=>x&&x.name).map(x=>`<tr><td>${x.name}</td><td>${x.runs||0}</td><td>${x.balls||0}</td><td>${x.unplayable||0}</td><td>${x.catches||0}</td><td>${x.runOuts||0}</td><td>${x.dismissals||0}</td></tr>`).join('');const bs=Object.values(s.bowlers||{}).filter(x=>x&&x.name).map(x=>`<tr><td>${x.name}</td><td>${x.runs||0}</td><td>${x.legalBalls||0}</td><td>${x.wickets||0}</td><td>${x.wides||0}</td><td>${x.noBalls||0}</td><td>${x.dots||0}</td></tr>`).join('');const lg=(s.log||[]).map(x=>`<tr><td>${x.inn||''}</td><td>${x.over||''}</td><td>${x.face||''}</td><td>${x.kind||''}</td><td>${x.runs||0}</td><td>${x.wicket?'Ja':'Nee'}</td></tr>`).join('');const p=window.open('','_blank');if(!p)return alert('Laat asseblief pop-ups toe.');p.document.write(`<!doctype html><html lang="af"><head><meta charset="utf-8"><title>Junior Krieket – ${bat}</title><style>body{font-family:Arial,sans-serif;padding:25px;color:#172033}h1{margin:0 0 5px}h2{margin-top:22px;border-bottom:1px solid #ccc;padding-bottom:5px}table{width:100%;border-collapse:collapse;margin-top:8px}th,td{border:1px solid #ccc;padding:6px;text-align:center}th:first-child,td:first-child{text-align:left}.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.box{border:1px solid #bbb;border-radius:8px;padding:9px}@media print{body{padding:10px}}</style></head><body><h1>Junior Krieket – ${bat} vs ${opp}</h1><p>Innings ${s.innings||1} • ${new Date().toLocaleString('af-ZA')}</p><div class="summary"><div class="box"><b>${bat}</b><br>${t.runs||0}/${t.wickets||0}</div><div class="box"><b>${opp}</b><br>${o.runs||0}/${o.wickets||0}</div><div class="box"><b>Overs</b><br>${Math.floor((t.legalBalls||0)/8)}.${(t.legalBalls||0)%8}</div><div class="box"><b>Onspeelbaar / Coach</b><br>${t.unplayable||0} / ${t.coach||0} (${t.coachRuns||0})</div></div><h2>Kolwer-statistieke</h2><table><tr><th>Speler</th><th>Lopies</th><th>Speelbaar</th><th>Onspeelbaar</th><th>Catches</th><th>Run Outs</th><th>Uit</th></tr>${rows}</table><h2>Bouler-statistieke</h2><table><tr><th>Bouler</th><th>Lopies teen</th><th>Geldige balle</th><th>Paaltjies</th><th>Wydes</th><th>No-balls</th><th>Dots</th></tr>${bs}</table><h2>Bal-vir-bal</h2><table><tr><th>Inn.</th><th>Over</th><th>Face</th><th>Soort</th><th>Lopies</th><th>Wicket</th></tr>${lg}</table></body></html>`);p.document.close();setTimeout(()=>p.print(),400)}catch(e){alert('PDF kon nie voorberei word nie: '+e.message)}}
+let forced=false;function patch(){try{const d=innerDoc(),w=innerWin(),s=w&&w.__juniorState;if(!d||!w||!s)return;const t=s.score?.[s.batting],legal=Number(t?.legalBalls||0),bp=d.getElementById('bowlerPanel');if(s.started&&!s.completed&&legal>0&&legal%8===0&&!forced){forced=true;s.bowler=null;s.selectedBowler=null;if(typeof w.openBowler==='function')w.openBowler();if(typeof w.render==='function')w.render()}const bc=d.getElementById('bowlerChoices');if(bp&&!bp.classList.contains('hidden')&&bc){const enabled=[...bc.querySelectorAll('button')].filter(b=>!b.disabled);if(enabled.length===1)(s.usedBowlers||[]).forEach(name=>{let b=[...bc.querySelectorAll('button')].find(x=>x.textContent.trim().replace(/ ✓.*$/,'')===name);if(!b){b=d.createElement('button');b.type='button';b.className='btn choice';b.textContent=name;bc.appendChild(b)}b.disabled=false;if(!b.dataset.v32){b.dataset.v32='1';b.addEventListener('click',()=>{[...bc.children].forEach(x=>x.classList.remove('selected'));b.classList.add('selected');s.selectedBowler=name;const c=d.getElementById('confirmBowler');if(c)c.disabled=false})}})}
+const actions=d.querySelector('.actions');if(actions){addBtn(d,actions,'downloadPdf','📥 LAAI PDF AF','primary',pdf);}
+const ip=d.getElementById('inningsPanel');if(ip&&!ip.classList.contains('hidden'))addBtn(d,ip,'downloadInningsPdf','📥 LAAI PDF AF – INNINGS '+(s.innings||1),'primary',pdf);
+const striker=d.getElementById('striker'),card=striker&&striker.closest('.card');if(card)addBtn(d,card,'swapStrike','🔄 RUIL STRIKE','btn',()=>{if(!s.started||s.completed||!s.striker||!s.nonStriker||s.pendingDismissal||s.pendingFielder||s.pendingNewBatter||s.pendingCoachThrow||s.pairLimitAccepted)return;if(typeof w.snapshot==='function')w.snapshot();[s.striker,s.nonStriker]=[s.nonStriker,s.striker];if(typeof w.render==='function')w.render()})}catch(e){console.warn('O/6 v32 patch',e)}}setInterval(patch,200);outer.addEventListener('load',()=>setTimeout(patch,300));</script></body></html>
