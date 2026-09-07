@@ -3,9 +3,38 @@
 (function(){
 const frame=document.getElementById('portal');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const esc=v=>String(v??'').replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[m]));
 function norm(v){return String(v||'').trim().toUpperCase().replace(/\s+/g,' ')}
 function targetForMatch(m){const age=norm(m?.age_group).replace(/^O\//,'U/');if(age==='U/8')return `scorer-o8-v9.html?match=${encodeURIComponent(m.id)}&v=9`;if(age==='U/6')return `scorer-o6-v19.html?match=${encodeURIComponent(m.id)}&v=25`;if(age==='U/7')return `scorer-o7.html?match=${encodeURIComponent(m.id)}&v=25`;throw Error(`Geen telkaart-roete is vir ${m?.age_group||'hierdie ouderdomsgroep'} gekonfigureer nie.`)}
+async function installCoachRoleFix(d,sb){
+  if(!d||!sb)return false;
+  const labels=[...d.querySelectorAll('label')];
+  const label=labels.find(x=>norm(x.textContent).includes('AFRIGTER VIR HIERDIE WEDSTRYD'));
+  let select=label?.control||null;
+  if(!select&&label?.htmlFor)select=d.getElementById(label.htmlFor);
+  if(!select&&label)select=label.parentElement?.querySelector('select')||label.closest('div')?.querySelector('select');
+  if(!select||select.tagName!=='SELECT')return false;
+  const [profilesQ,rolesQ]=await Promise.all([
+    sb.from('user_profiles').select('user_id,full_name,active').eq('active',true),
+    sb.from('user_roles').select('user_id,role,active').eq('role','coach').eq('active',true)
+  ]);
+  if(profilesQ.error||rolesQ.error)return false;
+  const profiles=new Map((profilesQ.data||[]).map(p=>[String(p.user_id),p]));
+  const coaches=(rolesQ.data||[]).map(r=>profiles.get(String(r.user_id))).filter(Boolean).sort((a,b)=>String(a.full_name||'').localeCompare(String(b.full_name||''),'af'));
+  const signature=coaches.map(c=>String(c.user_id)+':'+String(c.full_name||'')).join('|');
+  if(select.dataset.v25CoachRoleSignature===signature)return true;
+  const current=select.value;
+  const first=[...select.options].find(o=>!String(o.value||'').trim());
+  select.innerHTML='';
+  const placeholder=d.createElement('option');
+  placeholder.value='';
+  placeholder.textContent=first?.textContent||'Kies afrigter';
+  select.appendChild(placeholder);
+  coaches.forEach(c=>{const o=d.createElement('option');o.value=String(c.user_id);o.textContent=String(c.full_name||'').trim()||String(c.user_id);select.appendChild(o)});
+  if([...select.options].some(o=>o.value===current))select.value=current;
+  select.dataset.v25CoachRoleSignature=signature;
+  return true;
+}
 async function patch(){
   const v23=frame.contentDocument;if(!v23)return false;
   const v21frame=v23.querySelector('#portal');if(!v21frame)return false;
@@ -23,6 +52,12 @@ async function patch(){
     d.querySelectorAll('[data-v25-open]').forEach(btn=>btn.onclick=async()=>{btn.disabled=true;btn.textContent='Open…';try{await d.defaultView.openAdminScorecard(btn.dataset.v25Open)}catch(e){btn.disabled=false;btn.textContent='🏏 Open Telkaart';alert(e.message||String(e))}});
     d.querySelectorAll('[data-v25-delete]').forEach(btn=>btn.onclick=async()=>{const id=btn.dataset.v25Delete;const row=btn.closest('tr');const label=row?.children?.[1]?.textContent||'Hierdie wedstryd';const date=row?.children?.[0]?.textContent||'';if(!confirm(`Delete hierdie wedstryd?\n\n${label}\n${date}\n\nAlle gekoppelde scorer-data vir hierdie wedstryd sal ook verwyder word.`))return;btn.disabled=true;btn.textContent='Delete…';const{error}=await sb.from('matches').delete().eq('id',id);if(error){btn.disabled=false;btn.textContent='🗑️ Delete';alert('Kon wedstryd nie delete nie: '+error.message);return}if(typeof d.defaultView.msg==='function')d.defaultView.msg('matchMsg','Wedstryd suksesvol deleted.','success');await d.defaultView.loadMatches();if(typeof d.defaultView.dashboard==='function')await d.defaultView.dashboard()});
   };
+  const coachFix=()=>installCoachRoleFix(d,sb).catch(()=>false);
+  await coachFix();
+  if(!d.defaultView.v25CoachRoleObserver){
+    d.defaultView.v25CoachRoleObserver=new MutationObserver(()=>coachFix());
+    d.defaultView.v25CoachRoleObserver.observe(d.body,{childList:true,subtree:true});
+  }
   await d.defaultView.loadMatches();return true;
 }
 frame.addEventListener('load',async()=>{for(let i=0;i<100;i++){try{if(await patch())return}catch(e){}await sleep(250)}});
