@@ -1,0 +1,45 @@
+<!doctype html><html lang="af"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Junior Krieket – O/6 Telkaart V32</title><style>html,body{margin:0;background:#eef2f6;width:100%;height:100%;overflow:hidden}iframe{width:100%;height:100%;border:0}</style></head><body><iframe id="score" title="Junior Krieket O/6 Telkaart"></iframe><script>
+'use strict';
+const q=location.search,outer=document.getElementById('score');outer.src='scorer-o6-v31.html'+q+'&fix=v32';
+function innerDoc(){try{const d=outer.contentDocument;if(!d)return null;const f=d.getElementById('frame');return f&&f.contentDocument?f.contentDocument:null}catch(e){return null}}
+function innerWin(){try{const d=outer.contentDocument,f=d&&d.getElementById('frame');return f&&f.contentWindow?f.contentWindow:null}catch(e){return null}}
+let resumeBoundaryForced=false;
+function patch(){try{const d=innerDoc(),w=innerWin(),s=w&&w.__juniorState;if(!d||!w||!s)return;
+/* HARD RESUME / END-OF-OVER LOCK: a saved match at an over boundary must require a fresh bowler selection. */
+const t=s.score&&s.batting?s.score[s.batting]:null,legal=t?Number(t.legalBalls||0):0;
+const boundary=s.started&&!s.completed&&legal>0&&legal%8===0;
+const bp=d.getElementById('bowlerPanel');
+if(boundary&&!resumeBoundaryForced){
+  resumeBoundaryForced=true;
+  s.bowler=null;
+  s.selectedBowler=null;
+  if(typeof w.openBowler==='function')w.openBowler();
+  if(typeof w.render==='function')w.render();
+}
+/* If the panel is open, scoring must stay locked until a bowler is confirmed. */
+if(boundary&&bp&&!bp.classList.contains('hidden')){
+  s.bowler=null;
+  if(typeof w.render==='function')w.render();
+}
+/* Final bowler exception: if exactly one NEW bowler remains, unlock previous bowlers too. */
+const bc=d.getElementById('bowlerChoices');
+if(bp&&!bp.classList.contains('hidden')&&bc){
+  const enabled=[...bc.querySelectorAll('button')].filter(b=>!b.disabled);
+  if(enabled.length===1){
+    const previous=Array.isArray(s.usedBowlers)?s.usedBowlers.slice():[];
+    previous.forEach(name=>{
+      const existing=[...bc.querySelectorAll('button')].find(b=>b.textContent.trim().replace(/ ✓.*$/,'')===name);
+      if(existing){
+        existing.disabled=false;existing.textContent=name;
+        if(!existing.dataset.v32wired){existing.dataset.v32wired='1';existing.addEventListener('click',()=>{[...bc.querySelectorAll('button')].forEach(x=>x.classList.remove('selected'));existing.classList.add('selected');s.selectedBowler=name;const c=d.getElementById('confirmBowler');if(c)c.disabled=false})}
+      }else{
+        const b=d.createElement('button');b.type='button';b.className='btn choice';b.textContent=name;b.addEventListener('click',()=>{[...bc.querySelectorAll('button')].forEach(x=>x.classList.remove('selected'));b.classList.add('selected');s.selectedBowler=name;const c=d.getElementById('confirmBowler');if(c)c.disabled=false});bc.appendChild(b)
+      }
+    });
+    const msg=d.getElementById('bowlerMessage');if(msg)msg.textContent='Laaste nuwe bouler: kies die laaste nuwe bouler, of enige vorige bouler wat reeds geboul het.';
+  }
+}
+/* Manual strike swap stays available from v31. */
+}catch(e){console.warn('O/6 v32 patch',e)}}
+setInterval(patch,150);outer.addEventListener('load',()=>setTimeout(patch,300));
+</script></body></html>
